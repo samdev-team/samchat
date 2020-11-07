@@ -109,7 +109,6 @@ class Main:
         while self.running:
             try:
                 msg = self.sock.recv(1024).decode('utf-8')
-                print(msg)
                 if msg == '':
                     raise Exception('server_disconnected')
                 if len(self.messages) == 13:
