@@ -29,7 +29,7 @@ class Main:
 
     async def join(self):
         con = Label(self.root, text='Connecting', font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
-        con.place(x=300, y=20)
+        con.place(x=340, y=20)
         status = await self.connect()
         con.destroy()
         if status:
@@ -39,7 +39,7 @@ class Main:
             label.destroy()
         else:
             Label(self.root, text='Sorry could not connect to server\nplease try agin later',
-                  font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=400, y=30)
+                  font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=230, y=20)
             return
 
         def send_un():
@@ -66,10 +66,24 @@ class Main:
             print('No servers are available')
             return False
 
+    def add_prev_messages(self):
+        for msg in self.prev_msg:
+            for i in self.messages:
+                i['label'].place(x=0, y=i['location'] - 30)
+                i['location'] -= 30
+            self.messages.append(
+                {'label':Label(self.frame, text=msg, font=('Consolas', 15, 'bold'), bg='#4c4c4c', fg='white'),
+                 'location':290})
+            index = len(self.messages) - 1
+            self.messages[index]['label'].place(x=0, y=290)
+
+
     def Main(self):
         self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
         self.chat_verlabel.place(x=25, y=20)
+        self.prev_msg = eval(self.sock.recv(1024).decode('utf-8'))
         self.frame.place(x=40, y=80)
+        self.add_prev_messages()
         self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:', font=('Consolas', 15, 'bold'))
         self.message_label.place(x=25, y=420)
         self.msg_input = Text(self.root, bg=self.bgcolor, fg='white', height=1, font=('Consolas', 15, 'bold'),
@@ -95,6 +109,9 @@ class Main:
         while self.running:
             try:
                 msg = self.sock.recv(1024).decode('utf-8')
+                print(msg)
+                if msg == '':
+                    raise Exception('server_disconnected')
                 if len(self.messages) == 13:
                     self.messages[0]['label'].destroy()
                     self.messages.remove(self.messages[0])
@@ -107,12 +124,12 @@ class Main:
 
             except:
                 # destroy widgets
-                self.chat_verlabel.place(x=1000, y=1000)
-                self.frame.place(x=1000, y=1000)
-                self.message_label.place(x=1000, y=1000)
-                self.msg_input.place(x=1000, y=1000)
+                self.chat_verlabel.place(x=-1000, y=-1000)
+                self.frame.place(x=-1000, y=-1000)
+                self.message_label.place(x=-1000, y=-1000)
+                self.msg_input.place(x=-1000, y=-1000)
                 Label(self.root, text='Server connection lost\nplease try again later',
-                      font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').pack()
+                      font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=230, y=25)
                 self.running = False
 
 

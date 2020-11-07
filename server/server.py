@@ -10,6 +10,7 @@ class Main:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.task = None
         self.clients = []
+        self.messages = []
         try:
             self.sock.bind(('192.168.0.69', 2288))
         except:
@@ -30,6 +31,8 @@ class Main:
     async def connect(self, s, username):
         self.clients.append({'name':username, 'client':s})
         self.index = len(self.clients) - 1
+        await asyncio.sleep(0.01)
+        s.send(str(self.messages).encode('utf-8'))
         Thread(target=lambda: asyncio.run(self.client_thread())).start()
         await self.do_broad_task(username + " has joined the chat")
 
@@ -42,6 +45,7 @@ class Main:
         await self.task
 
     async def broadcast(self, msg):
+        await self.do_messages_store(msg)
         if not len(self.clients):
             print('Main-thread: No one is in the chat not broadcasting message')
         for client in self.clients:
@@ -67,6 +71,11 @@ class Main:
             await asyncio.wait_for(self.task, 100)
         self.task = asyncio.create_task(self.broadcast(msg))
         await self.task
+
+    async def do_messages_store(self, msg):
+        if len(self.messages) == 13:
+            self.messages.remove(self.messages[0])
+        self.messages.append(msg)
 
     async def client_thread(self, running=True):
         client_data = self.clients[self.index]
