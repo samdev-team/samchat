@@ -33,7 +33,7 @@ class Main:
         self.index = len(self.clients) - 1
         await asyncio.sleep(0.01)
         s.send(str(self.messages).encode('utf-8'))
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.05)
         users = []
         for i in self.clients:
             users.append(i['name'])
