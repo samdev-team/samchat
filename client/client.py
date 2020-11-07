@@ -12,7 +12,7 @@ class Main:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         self.root.geometry('800x500')
-        self.root.title('ALTERA CHAT CLIENT V.0.3')
+        self.root.title('ALTERA CHAT CLIENT V.0.4')
         self.root.resizable(0, 0)
         self.bgcolor = '#2e2d2d'
         img = ImageTk.PhotoImage(Image.open('assets/ALTERA-CHAT-BG.jpg'))
