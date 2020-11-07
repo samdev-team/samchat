@@ -67,7 +67,7 @@ class Main:
             return False
 
     def Main(self):
-        self.chat_verlabel = Label(text='ALTERA CHAT CLIENT V.0.4', font=('Consolas', 18, 'bold'), bg=self.bgcolor, fg='white')
+        self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
         self.chat_verlabel.place(x=25, y=20)
         self.frame.place(x=40, y=80)
         self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:', font=('Consolas', 15, 'bold'))
