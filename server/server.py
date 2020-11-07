@@ -1,8 +1,8 @@
 import socket
 import asyncio
-from time import sleep
 from threading import Thread
 from datetime import datetime
+import re
 
 
 class Main:
@@ -10,12 +10,12 @@ class Main:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.task = None
         self.clients = []
-
-    async def handle(self):
         try:
             self.sock.bind(('192.168.0.69', 2288))
         except:
             self.sock.bind(('localhost', 2288))
+
+    async def handle(self):
         self.sock.listen(1)
         print('Main-thread: Listening for connections')
         while True:
@@ -30,12 +30,8 @@ class Main:
     async def connect(self, s, username):
         self.clients.append({'name':username, 'client':s})
         self.index = len(self.clients) - 1
-        if self.task in asyncio.all_tasks():
-            await asyncio.wait_for(self.task, 100)
-        self.task = asyncio.create_task(self.broadcast(username + " has joined the chat"))
-        await self.task
-        # start new client thread
-        Thread(target=lambda:asyncio.run(self.client_thread())).start()
+        Thread(target=lambda: asyncio.run(self.client_thread())).start()
+        await self.do_broad_task(username + " has joined the chat")
 
     async def disconnect(self, client):
         name = client["name"]
