@@ -33,43 +33,60 @@ class Main:
         self.index = len(self.clients) - 1
         await asyncio.sleep(0.01)
         s.send(str(self.messages).encode('utf-8'))
-        Thread(target=lambda: asyncio.run(self.client_thread())).start()
-        await self.do_broad_task(username + " has joined the chat")
+        await asyncio.sleep(0.01)
+        users = []
+        for i in self.clients:
+            users.append(i['name'])
+        s.send(str(users).encode('utf-8'))
+        Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
+        await self.send(username + " has joined the chat")
 
     async def disconnect(self, client):
         name = client["name"]
         self.clients.remove(client)
-        if self.task in asyncio.all_tasks():
-            await asyncio.wait_for(self.task, 100)
-        self.task = asyncio.create_task(self.broadcast(name + " has left the chat"))
-        await self.task
-
-    async def broadcast(self, msg):
-        await self.do_messages_store(msg)
-        if not len(self.clients):
-            print('Main-thread: No one is in the chat not broadcasting message')
-        for client in self.clients:
-            try:
-                client['client'].send(f"{msg}".encode('utf-8'))
-            except:
-                print('Main-thread: user disconnected removing user (broken pipe)')
-                name = client['name']
-                await self.disconnect(client)
-                await self.do_broad_task(name + " has left the chat")
+        await self.send(name + " has left the chat")
 
     async def commands(self, msg, client_data):
-        msg = str(msg)
         if msg.startswith('.'):
-            print('checking messages for commands')
-            if 'change_nick:' in msg:
-                new_nick = msg.replace('.change_nick:', '')
-                await self.do_broad_task(f'{client_data["name"]} changed their nick to {new_nick}')
-                client_data['name'] = new_nick.rstrip()
+            try:
+                args = msg.replace('.', '').split()
+                cmd = args[0]
+                all_args = args[1:]
+                if cmd == 'nick':
+                    new_nick = ' '.join(all_args)
+                    if new_nick.startswith(''):
+                        await self.send('Cant change your nick to that')
+                    else:
+                        await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
+                        client_data['name'] = new_nick
+                else:
+                    raise Exception('Not a valid command')
+            except Exception:
+                await self.send('Error not a valid command')
 
-    async def do_broad_task(self, msg=None):
+    async def send(self, msg, user=None):
+        async def broadcast():
+            await self.do_messages_store(msg)
+            if not len(self.clients):
+                print('Main-thread: No one is in the chat not broadcasting message')
+            for client in self.clients:
+                try:
+                    client['client'].send(f"{msg}".encode('utf-8'))
+                except:
+                    print('Main-thread: user disconnected removing user (broken pipe)')
+                    name = client['name']
+                    await self.disconnect(client)
+                    await self.send(name + " has left the chat")
+        async def send_user():
+            print(';p;')
+
+        if not user:
+            func = broadcast
+        else:
+            func = send_user
         if self.task in asyncio.all_tasks():
             await asyncio.wait_for(self.task, 100)
-        self.task = asyncio.create_task(self.broadcast(msg))
+        self.task = asyncio.create_task(func())
         await self.task
 
     async def do_messages_store(self, msg):
@@ -87,7 +104,7 @@ class Main:
             try:
                 msg = client.recv(1024).decode('utf-8')
                 msg = msg.rstrip()
-                await self.do_broad_task(f'{username}:{msg}')
+                await self.send(f'{username}:{msg}')
                 await self.commands(msg, client_data)
             except:
                 print(f'{username}-thread: Disconnected')
