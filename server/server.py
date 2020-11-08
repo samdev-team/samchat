@@ -25,13 +25,15 @@ class Main:
             try:
                 username = s.recv(1024).decode('utf-8')
                 await self.connect(s, username)
-            except:
+            except Exception as e:
+                print('Error:' + str(e))
                 print(f'Main-thread: {a[0]} has disconnected')
 
     async def connect(self, s, username):
         self.clients.append({'name':username, 'client':s})
         self.index = len(self.clients) - 1
         s.send(str(self.messages).encode('utf-8'))
+        await self.wait_for_check(s)
         users = []
         for i in self.clients:
             users.append(i['name'])
@@ -41,8 +43,11 @@ class Main:
         await self.send(username + " has joined the chat")
 
     async def wait_for_check(self, s):
-        await asyncio.wait_for(s.recv(1024), 100)
-        print('done')
+        async def recv():
+            s.recv(1024)
+        task = asyncio.create_task(recv())
+        await task
+        await asyncio.wait_for(task, 100)
 
     async def disconnect(self, client):
         name = client["name"]

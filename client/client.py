@@ -88,8 +88,8 @@ class Main:
             i['label'].place(x=0, y=i['location'] - 30)
             i['location'] -= 30
         self.messages.append(
-            {'label':Label(self.frame, text=msg, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white'),
-             'location':280})
+            {'label': Label(self.frame, text=msg, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white'),
+             'location': 280})
         index = len(self.messages) - 1
         self.messages[index]['label'].place(x=0, y=280)
 
@@ -101,14 +101,16 @@ class Main:
             self.msg_input.place(x=25, y=450)
             self.users_list.place(x=600, y=25)
 
+    async def check_recv(self):
+        self.sock.send('recv'.encode('utf-8'))
+
     async def Main(self):
         # set up messages and users
         await self.place_widgets('main')
         self.prev_msg = eval(self.sock.recv(1024).decode('utf-8'))
-        print(self.prev_msg)
+        await self.check_recv()
         self.users = eval(self.sock.recv(1024).decode('utf-8'))
-        print(self.users)
-        self.sock.send('recv'.encode('utf-8'))
+        await self.check_recv()
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
