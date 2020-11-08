@@ -36,8 +36,13 @@ class Main:
         for i in self.clients:
             users.append(i['name'])
         s.send(str(users).encode('utf-8'))
+        await self.wait_for_check(s)
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
+
+    async def wait_for_check(self, s):
+        await asyncio.wait_for(s.recv(1024), 100)
+        print('done')
 
     async def disconnect(self, client):
         name = client["name"]

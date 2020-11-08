@@ -104,10 +104,11 @@ class Main:
     async def Main(self):
         # set up messages and users
         await self.place_widgets('main')
-        self.prev_msg = eval(self.sock.recv(64).decode('utf-8'))
+        self.prev_msg = eval(self.sock.recv(1024).decode('utf-8'))
         print(self.prev_msg)
         self.users = eval(self.sock.recv(1024).decode('utf-8'))
         print(self.users)
+        self.sock.send('recv'.encode('utf-8'))
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
