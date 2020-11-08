@@ -142,6 +142,7 @@ class Main:
                 self.frame.place(x=-1000, y=-1000)
                 self.message_label.place(x=-1000, y=-1000)
                 self.msg_input.place(x=-1000, y=-1000)
+                self.users_list.place(x=-1000, y=-1000)
                 Label(self.root, text='Server connection lost\nplease try again later',
                       font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=265, y=25)
                 self.running = False
