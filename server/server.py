@@ -11,6 +11,7 @@ class Main:
         self.task = None
         self.clients = []
         self.messages = []
+        self.cmd_names = [['change_nick', 'nick']]
         try:
             self.sock.bind(('192.168.0.69', 2288))
         except:
@@ -42,6 +43,7 @@ class Main:
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
 
+
     async def wait_for_check(self, s):
         async def recv():
             s.recv(1024)
@@ -60,21 +62,22 @@ class Main:
                 args = msg.replace('.', '').split()
                 cmd = args[0]
                 all_args = args[1:]
-                if cmd == 'nick':
+                if cmd in self.cmd_names[0]:
                     new_nick = ' '.join(all_args)
                     if new_nick.startswith(''):
-                        await self.send('Cant change your nick to that')
+                        raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
                         await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
                         client_data['name'] = new_nick
                 else:
                     raise Exception('Not a valid command')
-            except Exception:
-                await self.send('Error not a valid command')
+            except Exception as e:
+                await self.send(f'Error: {e}')
 
     async def send(self, msg, user=None):
         async def broadcast():
-            await self.do_messages_store(msg)
+            if not msg.startswith('sys_htas2789'):
+                await self.do_messages_store(msg)
             if not len(self.clients):
                 print('Main-thread: No one is in the chat not broadcasting message')
             for client in self.clients:

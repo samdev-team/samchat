@@ -24,7 +24,7 @@ class Main:
         self.messages = []
         # Widgets
         self.frame = Frame(self.root, bg=self.bgcolor, width=600, height=330)
-        self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15)
+        self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15, height=17)
         self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
         self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
                                    font=('Consolas', 15, 'bold'))
@@ -132,6 +132,8 @@ class Main:
         while self.running:
             try:
                 msg = self.sock.recv(1024).decode('utf-8')
+                if msg.startswith('sys_htas2789'):
+                    args
                 if msg == '':
                     raise Exception('server_disconnected')
                 if len(self.messages) == 13:
