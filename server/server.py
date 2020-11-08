@@ -36,9 +36,8 @@ class Main:
         users = []
         for i in self.clients:
             users.append(i['name'])
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.5)
         s.send(str(users).encode('utf-8'))
-        await asyncio.sleep(0.1)
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
 
