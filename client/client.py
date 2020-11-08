@@ -24,7 +24,8 @@ class Main:
         self.messages = []
         # Widgets
         self.frame = Frame(self.root, bg=self.bgcolor, width=600, height=330)
-        self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15, height=17)
+        self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15,
+                                  height=17)
         self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
         self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
                                    font=('Consolas', 15, 'bold'))
@@ -128,18 +129,31 @@ class Main:
             self.sock.send(msg.encode('utf-8'))
             self.msg_input.delete('1.0', END)
 
+    async def syscmd(self, msg):
+        args = msg.split()
+        syscmd = args[1]
+        all_args = args[2:]
+        if syscmd == 'user_joined':
+            self.users_list.insert(END, all_args[2])
+        if syscmd == 'user_changed_nick':
+            index = self.users_list.get(0, END).index(all_args[2])
+            self.users_list.delete(index)
+            self.users_list.insert(index, all_args[3])
+
     async def recv(self):
         while self.running:
             try:
                 msg = self.sock.recv(1024).decode('utf-8')
                 if msg.startswith('sys_htas2789'):
-                    args
-                if msg == '':
-                    raise Exception('server_disconnected')
-                if len(self.messages) == 13:
-                    self.messages[0]['label'].destroy()
-                    self.messages.remove(self.messages[0])
-                await self.add_messages(msg)
+                    await self.syscmd(msg)
+                    pass
+                else:
+                    if msg == '':
+                        raise Exception('server_disconnected')
+                    if len(self.messages) == 13:
+                        self.messages[0]['label'].destroy()
+                        self.messages.remove(self.messages[0])
+                    await self.add_messages(msg)
 
             except:
                 # destroy widgets

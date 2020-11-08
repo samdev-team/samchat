@@ -27,7 +27,7 @@ class Main:
                 username = s.recv(1024).decode('utf-8')
                 await self.connect(s, username)
             except Exception as e:
-                print('Error:' + str(e))
+                print('Error: ', e)
                 print(f'Main-thread: {a[0]} has disconnected')
 
     async def connect(self, s, username):
@@ -67,7 +67,8 @@ class Main:
                     if new_nick.startswith(' '):
                         raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
-                        await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
+                        # await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
+                        # await self.send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}')
                         client_data['name'] = new_nick
                 else:
                     raise Exception('Not a valid command')
@@ -83,8 +84,9 @@ class Main:
             for client in self.clients:
                 try:
                     client['client'].send(f"{msg}".encode('utf-8'))
-                except:
-                    print('Main-thread: user disconnected removing user (broken pipe)')
+                except Exception as e:
+                    print('Error: ', e)
+                    print('Main-thread: user disconnected removing user')
                     name = client['name']
                     await self.disconnect(client)
                     await self.send(name + " has left the chat")
