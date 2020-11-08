@@ -8,55 +8,69 @@ import os
 
 class Main:
     def __init__(self):
+        # Tkinter and socket
         self.root = Tk()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         self.root.geometry('800x500')
         self.root.title('ALTERA CHAT CLIENT V.0.4')
         self.root.resizable(0, 0)
+        # Background data
         self.bgcolor = '#2e2d2d'
         img = ImageTk.PhotoImage(Image.open('assets/ALTERA-CHAT-BG.jpg'))
         Label(self.root, image=img).place(x=0, y=0, relwidth=1, relheight=1)
+        # Misc
         self.running = True
         self.messages = []
+        # Widgets
         self.frame = Frame(self.root, bg=self.bgcolor, width=600, height=330)
         self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15)
-        threading.Thread(target=lambda:asyncio.run(self.join())).start()
+        self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
+        self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
+                                   font=('Consolas', 15, 'bold'))
+        self.msg_input = Text(self.root, bg=self.bgcolor, fg='white', height=1, font=('Consolas', 15, 'bold'),
+                              insertbackground='white', bd=3, width=67)
+        # Start app
+        threading.Thread(target=lambda: asyncio.run(self.join())).start()
         self.root.mainloop()
 
     def exit(self):
+        # stop app
         self.running = False
+        self.root.destroy()
         sys.exit()
 
+    async def temp_label(self, text):
+        return Label(self.root, text=text, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
+
     async def join(self):
-        con = Label(self.root, text='Connecting', font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
-        con.place(x=340, y=20)
+        conlabel = await self.temp_label('Connecting')
+        conlabel.place(x=340, y=20)
         status = await self.connect()
-        con.destroy()
+        conlabel.destroy()
         if status:
-            label = Label(self.root, text='Connected to server', font=('Consolas', 15, 'bold'), bg=self.bgcolor,
-                          fg='white')
-            label.place(x=300, y=20)
+            connectedlabel = await self.temp_label('Connected to server')
+            connectedlabel.place(x=300, y=20)
             await asyncio.sleep(1)
-            label.destroy()
+            connectedlabel.destroy()
         else:
             Label(self.root, text='Sorry could not connect to server\nplease try agin later',
                   font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=230, y=20)
             return
 
-        def send_un():
+        async def send_un():
             self.sock.send(username.get().encode('utf-8'))
             label.destroy()
             username.destroy()
             self.root.unbind('<Return>')
-            self.Main()
+            await self.Main()
 
         label = Label(self.root, text='Choose a username', font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
         label.place(x=310, y=20)
         username = Entry(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white',
                          insertbackground='white')
         username.place(x=300, y=50)
-        self.root.bind('<Return>', func=lambda event: send_un())
+        self.root.bind('<Return>', func=lambda event: asyncio.run(send_un()))
 
     async def connect(self):
         try:
@@ -69,7 +83,7 @@ class Main:
         except:
             return False
 
-    def add_messages(self, msg):
+    async def add_messages(self, msg):
         for i in self.messages:
             i['label'].place(x=0, y=i['location'] - 30)
             i['location'] -= 30
@@ -79,29 +93,30 @@ class Main:
         index = len(self.messages) - 1
         self.messages[index]['label'].place(x=0, y=280)
 
-    def Main(self):
-        self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
-        self.chat_verlabel.place(x=25, y=20)
-        self.frame.place(x=40, y=80)
-        self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
-                                   font=('Consolas', 15, 'bold'))
-        self.message_label.place(x=25, y=420)
-        self.msg_input = Text(self.root, bg=self.bgcolor, fg='white', height=1, font=('Consolas', 15, 'bold'),
-                              insertbackground='white', bd=3, width=67)
-        self.msg_input.place(x=25, y=450)
-        self.users_list.place(x=600, y=25)
+    async def place_widgets(self, set):
+        if set == 'main':
+            self.chat_verlabel.place(x=25, y=20)
+            self.frame.place(x=40, y=80)
+            self.message_label.place(x=25, y=420)
+            self.msg_input.place(x=25, y=450)
+            self.users_list.place(x=600, y=25)
 
-        self.prev_msg = eval(self.sock.recv(1024).decode('utf-8'))
+    async def Main(self):
+        # set up messages and users
+        await self.place_widgets('main')
+        self.prev_msg = eval(self.sock.recv(512).decode('utf-8'))
+        print(self.prev_msg)
         self.users = eval(self.sock.recv(1024).decode('utf-8'))
+        print(self.users)
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
         for msg in self.prev_msg:
-            self.add_messages(msg)
-        self.root.bind('<Return>', func=self.sendmsg)
-        threading.Thread(target=lambda:asyncio.run(self.recv()), daemon=True).start()
+            await self.add_messages(msg)
+        self.root.bind('<Return>', func=lambda event: asyncio.run(self.sendmsg()))
+        threading.Thread(target=lambda: asyncio.run(self.recv()), daemon=True).start()
 
-    def sendmsg(self, event):
+    async def sendmsg(self):
         msg = str(self.msg_input.get("1.0", END)).rstrip()
         if msg == '':
             self.msg_input.delete('1.0', END)
@@ -119,7 +134,7 @@ class Main:
                 if len(self.messages) == 13:
                     self.messages[0]['label'].destroy()
                     self.messages.remove(self.messages[0])
-                self.add_messages(msg)
+                await self.add_messages(msg)
 
             except:
                 # destroy widgets

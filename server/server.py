@@ -33,12 +33,11 @@ class Main:
         self.index = len(self.clients) - 1
         await asyncio.sleep(0.01)
         s.send(str(self.messages).encode('utf-8'))
-        await asyncio.sleep(0.1)
         users = []
         for i in self.clients:
             users.append(i['name'])
+        await asyncio.sleep(0.01)
         s.send(str(users).encode('utf-8'))
-        await asyncio.sleep(0.5)
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
 
@@ -78,6 +77,7 @@ class Main:
                     name = client['name']
                     await self.disconnect(client)
                     await self.send(name + " has left the chat")
+
         async def send_user():
             print(';p;')
 
