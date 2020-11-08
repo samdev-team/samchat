@@ -64,7 +64,7 @@ class Main:
                 all_args = args[1:]
                 if cmd in self.cmd_names[0]:
                     new_nick = ' '.join(all_args)
-                    if new_nick.startswith(''):
+                    if new_nick.startswith(' '):
                         raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
                         await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
