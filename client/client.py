@@ -13,7 +13,7 @@ class Main:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         self.root.geometry('800x500')
-        self.root.title('ALTERA CHAT CLIENT V.0.4')
+        self.root.title('ALTERA CHAT CLIENT V.0.5')
         self.root.resizable(0, 0)
         # Background data
         self.bgcolor = '#2e2d2d'
@@ -26,7 +26,7 @@ class Main:
         self.frame = Frame(self.root, bg=self.bgcolor, width=600, height=330)
         self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15,
                                   height=17)
-        self.chat_verlabel = Label(text='ALTERA CHAT V.0.4', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
+        self.chat_verlabel = Label(text='ALTERA CHAT V.0.5', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
         self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
                                    font=('Consolas', 15, 'bold'))
         self.msg_input = Text(self.root, bg=self.bgcolor, fg='white', height=1, font=('Consolas', 15, 'bold'),
