@@ -133,14 +133,11 @@ class Main:
         args = msg.split()
         syscmd = args[1]
         all_args = args[2:]
-        print(args)
-        print(syscmd)
-        print(all_args)
         if syscmd == 'user_joined':
             self.users_list.insert(END, all_args[0])
         if syscmd == 'user_changed_nick':
-            old_nick = eval(all_args[0])
-            new_nick = eval(all_args[1])
+            old_nick = all_args[0]
+            new_nick = all_args[1]
             index = self.users_list.get(0, END).index(old_nick)
             self.users_list.delete(index)
             self.users_list.insert(index, new_nick)

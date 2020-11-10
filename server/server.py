@@ -24,7 +24,7 @@ class Main:
             s, a = self.sock.accept()
             print(f'Main-thread: {a[0]} has connected')
             try:
-                username = s.recv(1024).decode('utf-8').replace(' ', '+')
+                username = s.recv(1024).decode('utf-8').replace(' ', '_')
                 await self.connect(s, username)
             except Exception as e:
                 print('Error: ', e)
@@ -65,6 +65,8 @@ class Main:
                 if cmd in self.cmd_names[0]:
                     new_nick = ' '.join(all_args).replace(' ', '_')
                     if new_nick.startswith(' '):
+                        raise Exception(f'Cannot change nick to "{new_nick}"')
+                    elif new_nick == client_data['name']:
                         raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
                         await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
