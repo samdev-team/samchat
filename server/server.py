@@ -24,7 +24,7 @@ class Main:
             s, a = self.sock.accept()
             print(f'Main-thread: {a[0]} has connected')
             try:
-                username = s.recv(1024).decode('utf-8')
+                username = s.recv(1024).decode('utf-8').replace(' ', '+')
                 await self.connect(s, username)
             except Exception as e:
                 print('Error: ', e)
@@ -63,12 +63,12 @@ class Main:
                 cmd = args[0]
                 all_args = args[1:]
                 if cmd in self.cmd_names[0]:
-                    new_nick = ' '.join(all_args)
+                    new_nick = ' '.join(all_args).replace(' ', '_')
                     if new_nick.startswith(' '):
                         raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
-                        # await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
-                        # await self.send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}')
+                        await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
+                        await self.send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}')
                         client_data['name'] = new_nick
                 else:
                     raise Exception('Not a valid command')
@@ -84,12 +84,12 @@ class Main:
             for client in self.clients:
                 try:
                     client['client'].send(f"{msg}".encode('utf-8'))
+                    await self.wait_for_check(client['client'])
                 except Exception as e:
                     print('Error: ', e)
                     print('Main-thread: user disconnected removing user')
-                    name = client['name']
                     await self.disconnect(client)
-                    await self.send(name + " has left the chat")
+                    await self.send(client['name'], " has left the chat")
 
         async def send_user():
             print(';p;')

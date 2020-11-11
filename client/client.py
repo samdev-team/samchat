@@ -102,16 +102,16 @@ class Main:
             self.msg_input.place(x=25, y=450)
             self.users_list.place(x=600, y=25)
 
-    async def check_recv(self):
+    def recv_msg(self):
+        msg = self.sock.recv(1024).decode('utf-8')
         self.sock.send('recv'.encode('utf-8'))
+        return msg
 
     async def Main(self):
         # set up messages and users
         await self.place_widgets('main')
-        self.prev_msg = eval(self.sock.recv(1024).decode('utf-8'))
-        await self.check_recv()
-        self.users = eval(self.sock.recv(1024).decode('utf-8'))
-        await self.check_recv()
+        self.prev_msg = eval(self.recv_msg())
+        self.users = eval(self.recv_msg())
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
@@ -133,17 +133,22 @@ class Main:
         args = msg.split()
         syscmd = args[1]
         all_args = args[2:]
+        print(args)
+        print(syscmd)
+        print(all_args)
         if syscmd == 'user_joined':
-            self.users_list.insert(END, all_args[2])
+            self.users_list.insert(END, all_args[0])
         if syscmd == 'user_changed_nick':
-            index = self.users_list.get(0, END).index(all_args[2])
+            old_nick = eval(all_args[0])
+            new_nick = eval(all_args[1])
+            index = self.users_list.get(0, END).index(old_nick)
             self.users_list.delete(index)
-            self.users_list.insert(index, all_args[3])
+            self.users_list.insert(index, new_nick)
 
     async def recv(self):
         while self.running:
             try:
-                msg = self.sock.recv(1024).decode('utf-8')
+                msg = self.recv_msg()
                 if msg.startswith('sys_htas2789'):
                     await self.syscmd(msg)
                     pass
@@ -155,7 +160,7 @@ class Main:
                         self.messages.remove(self.messages[0])
                     await self.add_messages(msg)
 
-            except:
+            except WindowsError:
                 # destroy widgets
                 self.chat_verlabel.place(x=-1000, y=-1000)
                 self.frame.place(x=-1000, y=-1000)
