@@ -8,48 +8,45 @@ import re
 class Main:
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.task = None
         self.clients = []
         self.messages = []
         self.cmd_names = [['change_nick', 'nick']]
         try:
             self.sock.bind(('192.168.0.69', 2288))
+            self.sys.bind(('192.168.0.69', 2289))
         except:
             self.sock.bind(('localhost', 2288))
+            self.sys.bind(('localhost', 2289))
 
     async def handle(self):
         self.sock.listen(1)
+        self.sys.listen(1)
         print('Main-thread: Listening for connections')
         while True:
             s, a = self.sock.accept()
+            s1, a1 = self.sys.accept()
             print(f'Main-thread: {a[0]} has connected')
             try:
                 username = s.recv(1024).decode('utf-8').replace(' ', '_')
-                await self.connect(s, username)
+                await self.connect(s, s1, username)
             except Exception as e:
-                print('Error: ', e)
+                print('Error:', e)
                 print(f'Main-thread: {a[0]} has disconnected')
 
-    async def connect(self, s, username):
-        self.clients.append({'name':username, 'client':s})
+    async def connect(self, s, s1, username):
+        self.clients.append({'name':username, 'client':s, "client1": s1})
         self.index = len(self.clients) - 1
-        s.send(str(self.messages).encode('utf-8'))
-        await self.wait_for_check(s)
+        s1.send(str(self.messages).encode('utf-8'))
+        await asyncio.sleep(0.1)
         users = []
         for i in self.clients:
             users.append(i['name'])
-        s.send(str(users).encode('utf-8'))
-        await self.wait_for_check(s)
+
+        s1.send(str(users).encode('utf-8'))
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
-
-
-    async def wait_for_check(self, s):
-        async def recv():
-            s.recv(1024)
-        task = asyncio.create_task(recv())
-        await task
-        await asyncio.wait_for(task, 100)
 
     async def disconnect(self, client):
         name = client["name"]
@@ -70,14 +67,14 @@ class Main:
                         raise Exception(f'Cannot change nick to "{new_nick}"')
                     else:
                         await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
-                        await self.send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}')
+                        client_data['client1'].send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}'.encode('utf-8'))
                         client_data['name'] = new_nick
                 else:
                     raise Exception('Not a valid command')
             except Exception as e:
                 await self.send(f'Error: {e}')
 
-    async def send(self, msg, user=None):
+    async def send(self, msg, user=None, destination=None):
         async def broadcast():
             if not msg.startswith('sys_htas2789'):
                 await self.do_messages_store(msg)
@@ -86,7 +83,6 @@ class Main:
             for client in self.clients:
                 try:
                     client['client'].send(f"{msg}".encode('utf-8'))
-                    await self.wait_for_check(client['client'])
                 except Exception as e:
                     print('Error: ', e)
                     print('Main-thread: user disconnected removing user')
@@ -94,12 +90,14 @@ class Main:
                     await self.send(client['name'], " has left the chat")
 
         async def send_user():
-            print(';p;')
+            user.send(msg.encode('utf-8'))
 
-        if not user:
-            func = broadcast
-        else:
+        if user:
             func = send_user
+        elif user and destination:
+            func = None
+        else:
+            func = broadcast
         if self.task in asyncio.all_tasks():
             await asyncio.wait_for(self.task, 100)
         self.task = asyncio.create_task(func())

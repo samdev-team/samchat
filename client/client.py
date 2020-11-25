@@ -11,6 +11,7 @@ class Main:
         # Tkinter and socket
         self.root = Tk()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         self.root.geometry('800x500')
         self.root.title('ALTERA CHAT CLIENT V.0.5')
@@ -76,10 +77,11 @@ class Main:
     async def connect(self):
         try:
             try:
-                self.sock.connect(('altera-server.ddns.net', 2288))
+                self.kill
                 return True
             except:
                 self.sock.connect(('localhost', 2288))
+                self.sys.connect(('localhost', 2289))
                 return True
         except:
             return False
@@ -104,14 +106,13 @@ class Main:
 
     def recv_msg(self):
         msg = self.sock.recv(1024).decode('utf-8')
-        self.sock.send('recv'.encode('utf-8'))
         return msg
 
     async def Main(self):
         # set up messages and users
         await self.place_widgets('main')
-        self.prev_msg = eval(self.recv_msg())
-        self.users = eval(self.recv_msg())
+        self.prev_msg = eval(self.sys.recv(1024).decode('utf-8'))
+        self.users = eval(self.sys.recv(1024).decode('utf-8'))
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
@@ -119,6 +120,7 @@ class Main:
             await self.add_messages(msg)
         self.root.bind('<Return>', func=lambda event: asyncio.run(self.sendmsg()))
         threading.Thread(target=lambda: asyncio.run(self.recv()), daemon=True).start()
+        threading.Thread(target=lambda: asyncio.run(self.sysrecv()), daemon=True).start()
 
     async def sendmsg(self):
         msg = str(self.msg_input.get("1.0", END)).rstrip()
@@ -142,22 +144,23 @@ class Main:
             self.users_list.delete(index)
             self.users_list.insert(index, new_nick)
 
+    async def sysrecv(self):
+        while self.running:
+                msg = self.sys.recv(1024).decode('utf-8')
+                await self.syscmd(msg)
+
     async def recv(self):
         while self.running:
             try:
                 msg = self.recv_msg()
-                if msg.startswith('sys_htas2789'):
-                    await self.syscmd(msg)
-                    pass
-                else:
-                    if msg == '':
+                if msg == '':
                         raise Exception('server_disconnected')
-                    if len(self.messages) == 13:
+                if len(self.messages) == 13:
                         self.messages[0]['label'].destroy()
                         self.messages.remove(self.messages[0])
-                    await self.add_messages(msg)
+                await self.add_messages(msg)
 
-            except WindowsError:
+            except WindowsError or Exception:
                 # destroy widgets
                 self.chat_verlabel.place(x=-1000, y=-1000)
                 self.frame.place(x=-1000, y=-1000)
