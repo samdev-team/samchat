@@ -6,39 +6,12 @@ import asyncio
 import os
 
 
-class Socket:
-    def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    async def connect(self):
-        try:
-            try:
-                raise Exception()
-                # self.sock.connect(('localhost', 2288))
-                # self.sys.connect(('localhost', 2289))
-                # return True
-            except:
-                self.sock.connect(('localhost', 2288))
-                self.sys.connect(('localhost', 2289))
-                return True
-        except:
-            return False
-
-    async def send(self, msg):
-        self.sock.send(msg.encode('utf-8'))
-
-    async def recv_sys(self):
-        return self.sys.recv(1024).decode('utf-8')
-
-    async def recv_sock(self):
-        return self.sock.recv(1024).decode('utf-8')
-
 class Main:
     def __init__(self):
         # Tkinter and socket
         self.root = Tk()
-        self.socket = Socket()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.root.protocol("WM_DELETE_WINDOW", self.exit)
         self.root.geometry('800x500')
         self.root.title('ALTERA CHAT CLIENT V.0.5')
@@ -75,7 +48,7 @@ class Main:
     async def join(self):
         conlabel = await self.temp_label('Connecting')
         conlabel.place(x=340, y=20)
-        status = await self.socket.connect()
+        status = await self.connect()
         conlabel.destroy()
         if status:
             connectedlabel = await self.temp_label('Connected to server')
@@ -88,7 +61,7 @@ class Main:
             return
 
         async def send_un():
-            await self.socket.send(username.get())
+            self.sock.send(username.get().encode('utf-8'))
             label.destroy()
             username.destroy()
             self.root.unbind('<Return>')
@@ -100,6 +73,18 @@ class Main:
                          insertbackground='white')
         username.place(x=300, y=50)
         self.root.bind('<Return>', func=lambda event: asyncio.run(send_un()))
+
+    async def connect(self):
+        try:
+            try:
+                self.kill
+                return True
+            except:
+                self.sock.connect(('localhost', 2288))
+                self.sys.connect(('localhost', 2289))
+                return True
+        except:
+            return False
 
     async def add_messages(self, msg):
         for i in self.messages:
@@ -119,13 +104,15 @@ class Main:
             self.msg_input.place(x=25, y=450)
             self.users_list.place(x=600, y=25)
 
+    def recv_msg(self):
+        msg = self.sock.recv(1024).decode('utf-8')
+        return msg
+
     async def Main(self):
         # set up messages and users
         await self.place_widgets('main')
-        msg = await self.socket.recv_sys()
-        self.prev_msg = eval(msg)
-        msg = await self.socket.recv_sys()
-        self.users = eval(msg)
+        self.prev_msg = eval(self.sys.recv(1024).decode('utf-8'))
+        self.users = eval(self.sys.recv(1024).decode('utf-8'))
         self.users_list.insert(END, 'Users:')
         for name in self.users:
             self.users_list.insert(END, name)
@@ -141,7 +128,7 @@ class Main:
             self.msg_input.delete('1.0', END)
             pass
         else:
-            await self.socket.send(msg)
+            self.sock.send(msg.encode('utf-8'))
             self.msg_input.delete('1.0', END)
 
     async def syscmd(self, msg):
@@ -159,21 +146,25 @@ class Main:
 
     async def sysrecv(self):
         while self.running:
-            msg = await self.socket.recv_sys()
-            await self.syscmd(msg)
+                msg = self.sys.recv(1024).decode('utf-8')
+                await self.syscmd(msg)
 
     async def recv(self):
         while self.running:
             try:
-                msg = await self.socket.recv_sock()
-                if msg == '':
-                    raise Exception('server_disconnected')
-                if len(self.messages) == 13:
-                    self.messages[0]['label'].destroy()
-                    self.messages.remove(self.messages[0])
-                await self.add_messages(msg)
+                msg = self.recv_msg()
+                if msg.startswith('sys_htas2789'):
+                    await self.syscmd(msg)
+                    pass
+                else:
+                    if msg == '':
+                        raise Exception('server_disconnected')
+                    if len(self.messages) == 13:
+                        self.messages[0]['label'].destroy()
+                        self.messages.remove(self.messages[0])
+                    await self.add_messages(msg)
 
-            except WindowsError or Exception:
+            except WindowsError:
                 # destroy widgets
                 self.chat_verlabel.place(x=-1000, y=-1000)
                 self.frame.place(x=-1000, y=-1000)
