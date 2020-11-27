@@ -103,13 +103,18 @@ class Main:
 
     async def add_messages(self, msg):
         for i in self.messages:
-            i['label'].place(x=0, y=i['location'] - 30)
-            i['location'] -= 30
+            i['location'] -= 35
+            i['frame'].place(x=0, y=i['location'])
+            i['label'].place(x=0, y=0)
+        '#6b6b6b'
         self.messages.append(
-            {'label': Label(self.frame, text=msg, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white'),
-             'location': 280})
+            {'location': 280, 'frame': Frame(self.frame, bg=self.bgcolor, width=500, height=30)})
         index = len(self.messages) - 1
-        self.messages[index]['label'].place(x=0, y=280)
+        self.messages[index]['frame'].place(x=0, y=280)
+        self.messages[index]['label'] = Label(self.messages[index]['frame'], text=msg, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
+        self.messages[index]['frame'].place(x=0, y=280)
+        self.messages[index]['label'].place(x=0, y=0)
+        self.messages[index]['frame'].bind('<Enter>')
 
     async def place_widgets(self, set):
         if set == 'main':
