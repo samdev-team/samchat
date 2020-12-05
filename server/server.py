@@ -29,7 +29,7 @@ class Main:
             s1, a1 = self.sys.accept()
             print(f'Main-thread: {a[0]} has connected')
             try:
-                username = s.recv(1024).decode('utf-8').replace(' ', '_')
+                username = s.recv(4096).decode('utf-8').replace(' ', '_')
                 await self.connect(s, s1, username)
             except Exception as e:
                 print('Error:', e)
@@ -38,20 +38,18 @@ class Main:
     async def connect(self, s, s1, username):
         self.clients.append({'name':username, 'client':s, "client1": s1})
         self.index = len(self.clients) - 1
-        s1.send(str(self.messages).encode('utf-8'))
+        await self.send(self.messages, s1)
         await asyncio.sleep(0.1)
         users = []
         for i in self.clients:
             users.append(i['name'])
-
-        s1.send(str(users).encode('utf-8'))
+        await self.send(users, s1)
         Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
         await self.send(username + " has joined the chat")
 
     async def disconnect(self, client):
-        name = client["name"]
         self.clients.remove(client)
-        await self.send(name + " has left the chat")
+        await self.send(client['name'] + " has left the chat")
 
     async def commands(self, msg, client_data):
         if msg.startswith('.'):
@@ -74,39 +72,31 @@ class Main:
             except Exception as e:
                 await self.send(f'Error: {e}')
 
-    async def send(self, msg, user=None, destination=None):
+    async def send(self, msg, client=None, destination=None):
         async def broadcast():
             if not msg.startswith('sys_htas2789'):
-                await self.do_messages_store(msg)
+                self.messages.append(msg)
             if not len(self.clients):
                 print('Main-thread: No one is in the chat not broadcasting message')
-            for client in self.clients:
+            for client_data in self.clients:
                 try:
-                    client['client'].send(f"{msg}".encode('utf-8'))
+                    await send_msg(client_data['client'])
                 except Exception as e:
                     print('Error: ', e)
                     print('Main-thread: user disconnected removing user')
                     await self.disconnect(client)
                     await self.send(client['name'], " has left the chat")
 
-        async def send_user():
-            user.send(msg.encode('utf-8'))
+        async def send_msg(socket_client):
+            socket_client.send(str(msg).encode('utf-8'))
+            await asyncio.sleep(0.1)
 
-        if user:
-            func = send_user
-        elif user and destination:
+        if client:
+            await send_msg(client)
+        elif client and destination:
             func = None
         else:
-            func = broadcast
-        if self.task in asyncio.all_tasks():
-            await asyncio.wait_for(self.task, 100)
-        self.task = asyncio.create_task(func())
-        await self.task
-
-    async def do_messages_store(self, msg):
-        if len(self.messages) == 13:
-            self.messages.remove(self.messages[0])
-        self.messages.append(msg)
+            await broadcast()
 
     async def client_thread(self, running=True):
         client_data = self.clients[self.index]
@@ -116,7 +106,7 @@ class Main:
         while running:
             username = client_data['name']
             try:
-                msg = client.recv(1024).decode('utf-8')
+                msg = client.recv(4096).decode('utf-8')
                 msg = msg.rstrip()
                 await self.send(f'{username}:{msg}')
                 await self.commands(msg, client_data)

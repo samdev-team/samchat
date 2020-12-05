@@ -29,10 +29,10 @@ class Socket:
         self.sock.send(msg.encode('utf-8'))
 
     async def recv_sys(self):
-        return self.sys.recv(1024).decode('utf-8')
+        return self.sys.recv(4096).decode('utf-8')
 
     async def recv_sock(self):
-        return self.sock.recv(1024).decode('utf-8')
+        return self.sock.recv(4096).decode('utf-8')
 
 class Main:
     def __init__(self):
@@ -47,15 +47,14 @@ class Main:
         self.bgcolor = '#2e2d2d'
         img = ImageTk.PhotoImage(Image.open('assets/ALTERA-CHAT-BG.jpg'))
         Label(self.root, image=img).place(x=0, y=0, relwidth=1, relheight=1)
-        # Misc
         self.running = True
-        self.messages = []
         # Widgets
-        self.frame = Frame(self.root, bg=self.bgcolor, width=600, height=330)
+        self.frame = Text(self.root, bg=self.bgcolor, width=50, height=15, bd=0, font=('Consolas', 15, 'bold'), fg='white')
+        self.frame.configure(inactiveselectbackground=self.frame.cget("selectbackground"))
         self.users_list = Listbox(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white', width=15,
                                   height=17)
         self.chat_verlabel = Label(text='ALTERA CHAT V.0.5', font=('Consolas', 25, 'bold'), bg=self.bgcolor, fg='white')
-        self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:',
+        self.message_label = Label(self.root, bg=self.bgcolor, fg='white', text='Message:                                           ',
                                    font=('Consolas', 15, 'bold'))
         self.msg_input = Text(self.root, bg=self.bgcolor, fg='white', height=1, font=('Consolas', 15, 'bold'),
                               insertbackground='white', bd=3, width=67)
@@ -88,44 +87,43 @@ class Main:
             return
 
         async def send_un():
-            await self.socket.send(username.get())
+            await self.socket.send(self.username.get())
             label.destroy()
-            username.destroy()
             self.root.unbind('<Return>')
             await self.Main()
 
         label = Label(self.root, text='Choose a username', font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
         label.place(x=310, y=20)
-        username = Entry(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white',
+        self.username = Entry(self.root, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white',
                          insertbackground='white')
-        username.place(x=300, y=50)
+        self.username.place(x=300, y=50)
         self.root.bind('<Return>', func=lambda event: asyncio.run(send_un()))
 
-    async def add_messages(self, msg):
-        for i in self.messages:
-            i['location'] -= 35
-            i['frame'].place(x=0, y=i['location'])
-            i['label'].place(x=0, y=0)
-        '#6b6b6b'
-        self.messages.append(
-            {'location': 280, 'frame': Frame(self.frame, bg=self.bgcolor, width=500, height=30)})
-        index = len(self.messages) - 1
-        self.messages[index]['frame'].place(x=0, y=280)
-        self.messages[index]['label'] = Label(self.messages[index]['frame'], text=msg, font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white')
-        self.messages[index]['frame'].place(x=0, y=280)
-        self.messages[index]['label'].place(x=0, y=0)
-        self.messages[index]['frame'].bind('<Enter>')
+    async def add_message(self, msg):
+        self.frame.configure(state='normal')
+        self.frame.insert(END, f'{msg}\n')
+        self.frame.configure(state='disabled')
+        self.frame.see('end')
+
 
     async def place_widgets(self, set):
         if set == 'main':
             self.chat_verlabel.place(x=25, y=20)
-            self.frame.place(x=40, y=80)
-            self.message_label.place(x=25, y=420)
-            self.msg_input.place(x=25, y=450)
-            self.users_list.place(x=600, y=25)
+            self.username_label[0].place(x=20, y=455)
+            self.username_label[1].place(x=298, y=455)
+            self.frame.place(x=40, y=65)
+            self.message_label.place(x=25, y=394)
+            self.msg_input.place(x=25, y=420)
+            # self.users_list.place(x=600, y=25)
 
     async def Main(self):
+        # get username and destroy widget
+        username = self.username.get()
+        self.username.destroy()
         # set up messages and users
+        self.username_label = [Label(self.root, bg=self.bgcolor, fg='white', text=f'You are currently logged in as',
+                                   font=('Consolas', 13, 'bold')), Label(self.root, bg=self.bgcolor, fg='orange', text=username,
+                                   font=('Consolas', 13, 'bold'))]
         await self.place_widgets('main')
         msg = await self.socket.recv_sys()
         self.prev_msg = eval(msg)
@@ -135,7 +133,7 @@ class Main:
         for name in self.users:
             self.users_list.insert(END, name)
         for msg in self.prev_msg:
-            await self.add_messages(msg)
+            await self.add_message(msg)
         self.root.bind('<Return>', func=lambda event: asyncio.run(self.sendmsg()))
         threading.Thread(target=lambda: asyncio.run(self.recv()), daemon=True).start()
         threading.Thread(target=lambda: asyncio.run(self.sysrecv()), daemon=True).start()
@@ -154,13 +152,11 @@ class Main:
         syscmd = args[1]
         all_args = args[2:]
         if syscmd == 'user_joined':
-            self.users_list.insert(END, all_args[0])
+            pass
         if syscmd == 'user_changed_nick':
             old_nick = all_args[0]
             new_nick = all_args[1]
-            index = self.users_list.get(0, END).index(old_nick)
-            self.users_list.delete(index)
-            self.users_list.insert(index, new_nick)
+            self.username_label[1].config(text=new_nick)
 
     async def sysrecv(self):
         while self.running:
@@ -173,10 +169,7 @@ class Main:
                 msg = await self.socket.recv_sock()
                 if msg == '':
                     raise Exception('server_disconnected')
-                if len(self.messages) == 13:
-                    self.messages[0]['label'].destroy()
-                    self.messages.remove(self.messages[0])
-                await self.add_messages(msg)
+                await self.add_message(msg)
 
             except WindowsError or Exception:
                 # destroy widgets
