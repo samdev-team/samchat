@@ -20,6 +20,7 @@ class Main:
             self.sock.bind(('localhost', 2288))
             self.sys.bind(('localhost', 2289))
 
+
     async def handle(self):
         self.sock.listen(1)
         self.sys.listen(1)
@@ -53,24 +54,24 @@ class Main:
 
     async def commands(self, msg, client_data):
         if msg.startswith('.'):
-            try:
                 args = msg.replace('.', '').split()
                 cmd = args[0]
                 all_args = args[1:]
                 if cmd in self.cmd_names[0]:
                     new_nick = ' '.join(all_args).replace(' ', '_')
-                    if new_nick.startswith(' '):
-                        raise Exception(f'Cannot change nick to "{new_nick}"')
-                    elif new_nick == client_data['name']:
-                        raise Exception(f'Cannot change nick to "{new_nick}"')
+                    if new_nick.startswith(' ') or new_nick == client_data['name']:
+                        await self.send(f'(message from server) Cannot change nick to "{new_nick}"', client_data['client'])
                     else:
                         await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
                         client_data['client1'].send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}'.encode('utf-8'))
                         client_data['name'] = new_nick
+                    return True
                 else:
-                    raise Exception('Not a valid command')
-            except Exception as e:
-                await self.send(f'Error: {e}')
+                    await self.send(f'(message from server) Invalid command: "{cmd}"', client_data['client'])
+                    return True
+        else:
+            return False
+
 
     async def send(self, msg, client=None, destination=None):
         async def broadcast():
@@ -108,8 +109,8 @@ class Main:
             try:
                 msg = client.recv(4096).decode('utf-8')
                 msg = msg.rstrip()
-                await self.send(f'{username}:{msg}')
-                await self.commands(msg, client_data)
+                if not await self.commands(msg, client_data):
+                    await self.send(f'{username}:{msg}')
             except:
                 print(f'{username}-thread: Disconnected')
                 print(f'{username}-thread: Removing from client list')

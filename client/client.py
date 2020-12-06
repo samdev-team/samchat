@@ -8,7 +8,7 @@ import os
 
 class Socket:
     def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.messages = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     async def connect(self):
@@ -19,20 +19,20 @@ class Socket:
                 # self.sys.connect(('localhost', 2289))
                 # return True
             except:
-                self.sock.connect(('localhost', 2288))
+                self.messages.connect(('localhost', 2288))
                 self.sys.connect(('localhost', 2289))
                 return True
         except:
             return False
 
     async def send(self, msg):
-        self.sock.send(msg.encode('utf-8'))
+        self.messages.send(msg.encode('utf-8'))
 
     async def recv_sys(self):
         return self.sys.recv(4096).decode('utf-8')
 
     async def recv_sock(self):
-        return self.sock.recv(4096).decode('utf-8')
+        return self.messages.recv(4096).decode('utf-8')
 
 class Main:
     def __init__(self):
@@ -146,7 +146,6 @@ class Main:
         else:
             await self.socket.send(msg)
             self.msg_input.delete('1.0', END)
-
     async def syscmd(self, msg):
         args = msg.split()
         syscmd = args[1]
@@ -178,6 +177,8 @@ class Main:
                 self.message_label.place(x=-1000, y=-1000)
                 self.msg_input.place(x=-1000, y=-1000)
                 self.users_list.place(x=-1000, y=-1000)
+                self.username_label[0].place(x=-1000, y=-1000)
+                self.username_label[1].place(x=-1000, y=-1000)
                 Label(self.root, text='Server connection lost\nplease try again later',
                       font=('Consolas', 15, 'bold'), bg=self.bgcolor, fg='white').place(x=265, y=25)
                 self.running = False
