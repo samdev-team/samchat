@@ -3,7 +3,7 @@ import threading
 from tkinter import *
 from tkinter import scrolledtext
 
-
+dev = False
 class Receive_Messages(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self, daemon=True)
@@ -23,7 +23,10 @@ class Socket:
 
     def connect(self):
         try:
-            self.sock.connect(('localhost', 8888))
+            if dev:
+                self.sock.connect(('localhost', 8888))
+            else:
+                self.sock.connect(('52.187.66.7', 8888))
         except WindowsError:
             return False
         return True

@@ -1,4 +1,5 @@
 import socket
+import sys
 from threading import Thread
 import random
 from time import sleep
@@ -46,7 +47,10 @@ class Server:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.clients = {}
         self.messages = [[]]
-        self.sock.bind(('localhost', 8888))
+        if "dev" in sys.argv:
+            self.sock.bind(('localhost', 8888))
+        else:
+            self.sock.bind(("10.1.1.4", 8888))
         print("Main/Thread: Bound Ip address and Port")
         print("Main/Thread: Server has started")
 
