@@ -1,124 +1,105 @@
 import socket
-import asyncio
 from threading import Thread
-from datetime import datetime
-import re
+import random
+from time import sleep
 
 
-class Main:
-    def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sys = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.task = None
-        self.clients = []
-        self.messages = []
-        self.cmd_names = [['change_nick', 'nick']]
-        try:
-            self.sock.bind(('192.168.0.69', 2288))
-            self.sys.bind(('192.168.0.69', 2289))
-        except:
-            self.sock.bind(('localhost', 2288))
-            self.sys.bind(('localhost', 2289))
+class Client_thread(Thread):
+    def __init__(self, client_data, parent):
+        Thread.__init__(self)
+        # Start thread
+        # client stuff
+        self.client_data = client_data
+        self.client = client_data["client"]
+        self.client_id = client_data["id"]
+        self.username = client_data["username"]
+        self.parent = parent
+        # start
+        print(f'{self.client_id}/Thread: Client thread has started')
 
-
-    async def handle(self):
-        self.sock.listen(1)
-        self.sys.listen(1)
-        print('Main-thread: Listening for connections')
-        while True:
-            s, a = self.sock.accept()
-            s1, a1 = self.sys.accept()
-            print(f'Main-thread: {a[0]} has connected')
-            try:
-                username = s.recv(4096).decode('utf-8').replace(' ', '_')
-                await self.connect(s, s1, username)
-            except Exception as e:
-                print('Error:', e)
-                print(f'Main-thread: {a[0]} has disconnected')
-
-    async def connect(self, s, s1, username):
-        self.clients.append({'name':username, 'client':s, "client1": s1})
-        self.index = len(self.clients) - 1
-        await self.send(self.messages, s1)
-        await asyncio.sleep(0.1)
-        users = []
-        for i in self.clients:
-            users.append(i['name'])
-        await self.send(users, s1)
-        Thread(target=lambda:asyncio.run(self.client_thread()), daemon=True).start()
-        await self.send(username + " has joined the chat")
-
-    async def disconnect(self, client):
-        self.clients.remove(client)
-        await self.send(client['name'] + " has left the chat")
-
-    async def commands(self, msg, client_data):
-        if msg.startswith('.'):
-                args = msg.replace('.', '').split()
-                cmd = args[0]
-                all_args = args[1:]
-                if cmd in self.cmd_names[0]:
-                    new_nick = ' '.join(all_args).replace(' ', '_')
-                    if new_nick.startswith(' ') or new_nick == client_data['name']:
-                        await self.send(f'(message from server) Cannot change nick to "{new_nick}"', client_data['client'])
-                    else:
-                        await self.send(f'{client_data["name"]} changed their nick to {new_nick}')
-                        client_data['client1'].send(f'sys_htas2789 user_changed_nick {client_data["name"]} {new_nick}'.encode('utf-8'))
-                        client_data['name'] = new_nick
-                    return True
-                else:
-                    await self.send(f'(message from server) Invalid command: "{cmd}"', client_data['client'])
-                    return True
-        else:
-            return False
-
-
-    async def send(self, msg, client=None, destination=None):
-        async def broadcast():
-            if not msg.startswith('sys_htas2789'):
-                self.messages.append(msg)
-            if not len(self.clients):
-                print('Main-thread: No one is in the chat not broadcasting message')
-            for client_data in self.clients:
-                try:
-                    await send_msg(client_data['client'])
-                except Exception as e:
-                    print('Error: ', e)
-                    print('Main-thread: user disconnected removing user')
-                    await self.disconnect(client)
-                    await self.send(client['name'], " has left the chat")
-
-        async def send_msg(socket_client):
-            socket_client.send(str(msg).encode('utf-8'))
-            await asyncio.sleep(0.1)
-
-        if client:
-            await send_msg(client)
-        elif client and destination:
-            func = None
-        else:
-            await broadcast()
-
-    async def client_thread(self, running=True):
-        client_data = self.clients[self.index]
-        client = client_data['client']
-        username = client_data['name']
-        print(f'{username}-thread: Started Thread')
+    def message_loop(self, running=True):
         while running:
-            username = client_data['name']
             try:
-                msg = client.recv(4096).decode('utf-8')
-                msg = msg.rstrip()
-                if not await self.commands(msg, client_data):
-                    await self.send(f'{username}:{msg}')
-            except:
-                print(f'{username}-thread: Disconnected')
-                print(f'{username}-thread: Removing from client list')
-                await self.disconnect(client_data)
+                message = self.client.recv(20971520).decode("utf-8")
+                if not message in self.parent.error_message_sends:
+                    self.parent.send_message(msg=message, from_client_data=self.client_data)
+
+                else:
+                    raise WindowsError
+            except WindowsError:
+                self.disconnect()
                 running = False
-        print(f'{username}-thread: Thread has stopped')
+                break
+
+    def disconnect(self):
+        del server.clients[self.client_id]
+        print(f'{self.client_id}/Thread: Client thread has stopped')
+
+    def run(self):
+        self.message_loop()
+
+
+class Server:
+    def __init__(self):
+        print("*** Server starting ***")
+        self.error_message_sends = ['']
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.clients = {}
+        self.messages = [[]]
+        self.sock.bind(('localhost', 8888))
+        print("Main/Thread: Bound Ip address and Port")
+        print("Main/Thread: Server has started")
+
+    def mainloop(self):
+        self.sock.listen(1)
+        print("Main/Thread: Listening for client connections")
+        while True:
+            client, address = self.sock.accept()
+            print(f"{address[0]}: Connected to server")
+            client_id = self.generate_client_id()
+            print(f"{address[0]}: Has been generated a client id ({client_id})")
+            try:
+                client.send(str(client_id).encode('utf-8'))
+                # username = client.recv(20971520).decode('utf-8')
+                username = "bob"
+                self.clients[client_id] = {"client": client, "id": client_id, "username": username, "ip_address": address[0]}
+                self.send_all_message_lists(self.clients[client_id])
+                Client_thread(self.clients[client_id], self).start()
+            except WindowsError:
+                print(f"{address[0]}: Disconnected from server")
+
+    def send_all_message_lists(self, client_data):
+        header = {"amount_of_message_lists": len(self.messages), "server": "No"}
+        self.send_message(msg=header, from_client_data=client_data, self_send=True)
+        for message_list in self.messages:
+            self.send_message(msg=message_list, from_client_data=client_data, self_send=True)
+
+    def send_message(self, msg, from_client_data, to_client_data=None, self_send=False):
+        sleep(0.05)
+        if not to_client_data and not self_send:
+            for client_id in self.clients:
+                client_data = self.clients[client_id]
+                message = f'{from_client_data["username"]}: {msg}'
+                # add message to messages
+                if len(self.messages[0]) == 20:
+                    self.messages.insert(0, [])
+                else:
+                    self.messages[0].append(message)
+                # send message to everyone
+                message_data = {"user_id": client_id, "message": message}
+                client_data['client'].send(str(message_data).encode('utf-8'))
+
+        elif self_send:
+            from_client_data['client'].send(str(msg).encode('utf-8'))
+
+    def generate_client_id(self):
+        client_id = random.randint(100000000000, 900000000000)
+        if client_id in self.clients:
+            self.generate_client_id()
+        else:
+            return client_id
 
 
 if __name__ == '__main__':
-    server = Main()
-    asyncio.run(server.handle())
+    server = Server()
+    server.mainloop()
