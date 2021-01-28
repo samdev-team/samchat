@@ -79,7 +79,7 @@ class Server:
             self.send_message(msg=message_list, from_client_data=client_data, self_send=True)
 
     def send_message(self, msg, from_client_data, to_client_data=None, self_send=False):
-        sleep(0.1)
+        sleep(0.5)
         if not to_client_data and not self_send:
             for client_id in self.clients:
                 client_data = self.clients[client_id]
