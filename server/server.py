@@ -76,10 +76,10 @@ class Server:
         header = {"amount_of_message_lists": len(self.messages), "server": "No"}
         self.send_message(msg=header, from_client_data=client_data, self_send=True)
         for message_list in self.messages:
-            self.send_message(msg=message_list, from_client_data=client_data, self_send=True)
+            self.send_message(msg=message_list, from_client_data=client_data, self_send=True, delay=0.15)
 
-    def send_message(self, msg, from_client_data, to_client_data=None, self_send=False):
-        sleep(0.3)
+    def send_message(self, msg, from_client_data, to_client_data=None, self_send=False, delay=0.05):
+        sleep(delay)
         if not to_client_data and not self_send:
             for client_id in self.clients:
                 client_data = self.clients[client_id]
