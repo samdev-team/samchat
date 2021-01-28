@@ -78,7 +78,7 @@ class Server:
         for message_list in self.messages:
             self.send_message(msg=message_list, from_client_data=client_data, self_send=True, delay=0.15)
 
-    def send_message(self, msg, from_client_data, to_client_data=None, self_send=False, delay=0.05):
+    def send_message(self, msg, from_client_data, to_client_data=None, self_send=False, delay=0.0):
         sleep(delay)
         if not to_client_data and not self_send:
             for client_id in self.clients:
