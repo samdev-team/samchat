@@ -26,8 +26,8 @@ class Client_thread(Thread):
                     self.parent.send_message(msg=message, from_client_data=self.client_data)
 
                 else:
-                    raise WindowsError
-            except WindowsError:
+                    raise Exception
+            except:
                 self.disconnect()
                 running = False
                 break
