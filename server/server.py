@@ -69,7 +69,7 @@ class Server:
                 self.clients[client_id] = {"client": client, "id": client_id, "username": username, "ip_address": address[0]}
                 self.send_all_message_lists(self.clients[client_id])
                 Client_thread(self.clients[client_id], self).start()
-            except WindowsError:
+            except:
                 print(f"{address[0]}: Disconnected from server")
 
     def send_all_message_lists(self, client_data):
@@ -79,7 +79,7 @@ class Server:
             self.send_message(msg=message_list, from_client_data=client_data, self_send=True)
 
     def send_message(self, msg, from_client_data, to_client_data=None, self_send=False):
-        sleep(0.08)
+        sleep(0.1)
         if not to_client_data and not self_send:
             for client_id in self.clients:
                 client_data = self.clients[client_id]
