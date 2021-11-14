@@ -3,7 +3,7 @@ import threading
 from tkinter import *
 from tkinter import scrolledtext
 
-dev = True
+dev = False
 class Receive_Messages(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self, daemon=True)
@@ -27,8 +27,8 @@ class Socket:
             if dev:
                 self.sock.connect(('localhost', 8888))
             else:
-                self.sock.connect(('52.187.66.7', 8888))
-        except WindowsError:
+                self.sock.connect(('localhost', 8881))
+        except socket.error:
             return False
         return True
 
@@ -81,7 +81,6 @@ class Main(Tk, threading.Thread):
     def send_message(self):
         message = self.message_send_entry.get()
         self.message_send_entry.delete(0, END)
-        self.add_message(message)
         self.socket.send(message)
 
     def add_message(self, message):
@@ -98,6 +97,8 @@ class Main(Tk, threading.Thread):
     def run(self):
         # Connect to server
         if self.connect():
+            # send username
+            # not implemented
             # Get client data
             self.getting_client_data_label.grid(row=0, sticky="NSEW")
             self.client_id = self.socket.recv_message()

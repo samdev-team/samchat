@@ -50,7 +50,7 @@ class Server:
         if "dev" in sys.argv:
             self.sock.bind(('localhost', 8888))
         else:
-            self.sock.bind(("10.1.1.4", 8888))
+            self.sock.bind(("localhost", 8881))
         print("Main/Thread: Bound Ip address and Port")
         print("Main/Thread: Server has started")
 
