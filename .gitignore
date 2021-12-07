@@ -1,3 +1,5 @@
+.idea
+
 # Python ignore stuff
 # Byte-compiled / optimized / DLL files
 __pycache__/
