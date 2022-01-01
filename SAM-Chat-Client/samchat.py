@@ -12,6 +12,7 @@ class StartMenu(ttk.Frame):
         ttk.Frame.__init__(self, parent)
         self.parent = parent
         parent.clear_window()
+        self.sock = Socket()
         self.configure(style="one.TFrame")
         self.parent.style.configure('one.TFrame', background=parent.background_colour)
 
@@ -23,30 +24,59 @@ class StartMenu(ttk.Frame):
                                     background="#4f4f4f", borderwidth=0)
         ttk.Button(self, text="Connect", style="one.TButton", padding=10, width=20, command=self.connect).grid(row=3,
                                                                                                                column=1)
+        self.username_input = ttk.Entry(self, width=20, font=('Helvetica', 30), justify='center')
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(4, weight=1)
 
     def connect(self):
-        self.parent.clear_window()
-        self.grid(column=1, row=1, sticky="nsew")
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        ttk.Label(self, text="Connecting", style="two.TLabel").grid(row=1, column=1)
+        self.clear_window()
+        self.parent.style.configure('three.TLabel', font=('Helvetica', 30), foreground="white",
+                                    background=self.parent.background_colour)
+        connecting_label = ttk.Label(self, text="Connecting", style="three.TLabel")
+        connecting_label.grid(row=1, column=1)
 
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
         self.grid_rowconfigure(2, weight=1)
-        self.grid_rowconfigure(3, weight=0)
+        self.grid_rowconfigure(3, weight=1)
         self.grid_rowconfigure(4, weight=0)
+
+        try:
+            self.sock.connect((ip, port))
+            print("connected")
+            self.user_creation()
+        except socket.error:
+            connecting_label.configure(text="Failed to connected (ip doxxed)\ntry again later")
+
+    def user_creation(self):
+        self.clear_window()
+        self.grid_rowconfigure(2, weight=0)
+        username_label = ttk.Label(self, text="Enter a username", style="three.TLabel")
+        username_label.grid(column=1, row=1, pady=15)
+        self.username_input.grid(column=1, row=2)
+        self.parent.bind("<Return>", self.send_user_data)
+
+    def send_user_data(self, event):
+        username = self.username_input.get()
+        no_space_username = username.replace(" ", "_")
+        self.sock.send_message(no_space_username)
+        self.parent.chat_room(self.sock)
+
+    def clear_window(self):
+        _list = self.winfo_children()
+        for item in _list:
+            if item.winfo_children():
+                _list.extend(item.winfo_children())
+
+        for widget in _list:
+            widget.grid_forget()
 
 
 class Application(Tk):
     def __init__(self):
         Tk.__init__(self)
-        self.sock = Socket()
-
         self.background_colour = "#2d2d2d"
         self.title("SAM-Chat")
         self.geometry("900x600")
@@ -80,6 +110,10 @@ class Application(Tk):
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
+    def chat_room(self, sock):
+        self.clear_window()
+        threading.Thread(target=sock.receive_messages, daemon=True).start()
+
 
 class Socket(socket.socket, threading.Thread):
     def __init__(self):
@@ -101,18 +135,7 @@ class Socket(socket.socket, threading.Thread):
                 break
 
 
-# app = Application()
-# app.start_menu()
-#
-# app.mainloop()
+app = Application()
+app.start_menu()
 
-sock = Socket()
-
-sock.connect((ip, port))
-
-sock.send_message(input("username: "))
-
-threading.Thread(target=sock.receive_messages, daemon=True).start()
-
-while True:
-    sock.send_message(input("\nMessage: "))
+app.mainloop()

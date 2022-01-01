@@ -41,18 +41,22 @@ port = 8812
 server_running = True
 users = []
 
+
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 root.debug("Initialized socket")
 
 
 def receive_data(user: User):
-    bufflen = int.from_bytes(user.client.recv(4), "little")
-    data = user.client.recv(bufflen).decode("utf-8")
-    return data
+    try:
+        bufflen = int.from_bytes(user.client.recv(4), "little")
+        data = user.client.recv(bufflen).decode("utf-8")
+        return data
+    except socket.error as e:
+        root.error(e)
 
 
 def send_to_all(msg):
-    root.debug(msg)
+    root.info(msg)
     encoded_message = len(msg).to_bytes(4, "little") + msg.encode("utf-8")
     for user in users:
         user.client.send(encoded_message)
@@ -77,8 +81,11 @@ def connection_listener():
         root.info(f"New connection from {addr[0]}")
         threading.Thread(target=lambda: add_client(conn), daemon=True).start()
 
+try:
+    sock.bind((ip, port))
+    root.debug(f"Binded socket to {ip} on port {port}")
+except socket.error as e:
+    root.error(e)
 
-sock.bind((ip, port))
-root.debug(f"Binded socket to {ip} on port {port}")
 
 connection_listener()
