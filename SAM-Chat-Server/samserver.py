@@ -9,6 +9,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
+import curses
 
 # logging setup
 root = logging.getLogger("SAM-Server")
@@ -44,14 +45,14 @@ class User:
 
 
 ip = ""
-port = 25469
-
+port = 25468
 
 if "dev" in sys.argv:
     ip = "127.0.0.1"
 
 server_running = True
 users = []
+messages = ["SAM-Chat -- LOl"]
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_root = None
@@ -106,14 +107,29 @@ def receive_data(user: User):
         root.error(e)
 
 
+def send_message(msg, user: User):
+    msg = encrypt(msg.encode('utf-8'))
+    encoded_message = len(msg).to_bytes(4, "little") + msg
+    user.client.send(encoded_message)
+
+
 def send_to_all(msg, user: User, send_username: bool):
     if send_username:
         msg = f"{user.username}: " + msg
+    messages.append(msg)
     root.info(f"({user.userid} | {user.ip_address}) {msg}")
     msg = encrypt(msg.encode('utf-8', 'ignore'))
     encoded_message = len(msg).to_bytes(4, "little") + msg
     for user in users:
         user.client.send(encoded_message)
+
+
+def send_previous_messages(user: User):
+    amount_of_messages = len(messages)
+    send_message(str(amount_of_messages), user)
+    root.debug(f"({user.userid} | {user.ip_address}) Sending previous messages to user")
+    for message in messages:
+        send_message(message, user)
 
 
 def add_client(client: socket.socket, address):
@@ -128,6 +144,9 @@ def add_client(client: socket.socket, address):
         user.username = username
         users.append(user)
         root.debug(f"({user.userid} | {user.ip_address}) Added user to current connections")
+        send_previous_messages(user)
+        root.debug(f"({user.userid} | {user.ip_address}) Sent messages")
+        root.debug(f"({user.userid} | {user.ip_address}) User is ready to connect to the chat room")
         send_to_all(f"{username} has connected to the chat", user, False)
         user.receive_messages()
 
