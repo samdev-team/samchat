@@ -12,7 +12,7 @@ import os
 import time
 
 ip = "rozzanet.ddns.net"
-port = 25468
+port = 25469
 
 if "dev" in sys.argv:
     ip = "127.0.0.1"
