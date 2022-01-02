@@ -86,6 +86,7 @@ class StartMenu(ttk.Frame):
         open("sam.password", 'w').write(password)
         self.username_input.delete(0, END)
         self.user_creation()
+
     def send_user_data_get_old_messages(self, event):
         self.parent.unbind("<Return>")
         self.username = self.username_input.get()
@@ -124,7 +125,7 @@ class ChatRoom(ttk.Frame):
         self.text.configure(state=DISABLED)
         self.message_entry = Text(self, font=('Consolas', 16), width=50, height=2,
                                   background=self.parent.background_colour, foreground="white",
-                                  insertbackground='white', borderwidth=0)
+                                  insertbackground='white', borderwidth=0, border=2)
 
     def create_chat_room(self):
         self.message_entry.pack(side=BOTTOM, pady=15, padx=15)
@@ -185,7 +186,8 @@ class Application(Tk):
         self.style.configure("four.TLabel", background=self.background_colour, font=('Helvetica', 13, 'bold'))
         self.username_label = ttk.Label(self, text="", style="four.TLabel", foreground="white")
         self.username_label.place(x=15, y=5)
-        self.username_label1 = ttk.Label(self, text="", style="four.TLabel", foreground="orange", font=('Helvetica', 16, 'bold'))
+        self.username_label1 = ttk.Label(self, text="", style="four.TLabel", foreground="orange",
+                                         font=('Helvetica', 16, 'bold'))
         self.username_label1.place(x=15, y=30)
 
         self.top_ui.append(self.username_label)
