@@ -3,6 +3,13 @@ import threading
 from tkinter import *
 from tkinter import ttk
 import sys
+from cryptography.fernet import Fernet
+import base64
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import os
+
 
 ip = "rozzanet.ddns.net"
 port = 25469
@@ -86,22 +93,23 @@ class ChatRoom(ttk.Frame):
 
         self.configure(style="one.TFrame")
 
-        self.text = Text(self, width=65, height=15, font=('Consolas', 16), state=DISABLED,
+        self.text = Text(self, width=70, height=15, font=('Consolas', 16), state=DISABLED,
                          background=self.parent.background_colour, foreground="white", insertbackground='white')
         self.message_entry = Text(self, font=('Consolas', 16), width=50, height=2,
                                   background=self.parent.background_colour, foreground="white",
                                   insertbackground='white', borderwidth=0)
 
     def create_chat_room(self):
-        self.text.pack()
+        self.message_entry.pack(side=BOTTOM, pady=15, padx=15)
+        self.text.pack(side=BOTTOM, padx=15)
         self.text.configure(state=NORMAL)
-        for i in range(15):
+        for i in range(100):
             self.text.insert(END, "\n")
         self.text.configure(state=DISABLED)
         self.text.yview_moveto(1)
 
-        self.message_entry.pack(pady=25)
         self.parent.bind("<Return>", self.send_message)
+        self.parent.bind("<Configure>", self.on_resize)
 
     def add_message(self, msg):
         self.text.configure(state=NORMAL)
@@ -114,6 +122,16 @@ class ChatRoom(ttk.Frame):
         msg = msg.rstrip("\n")
         self.parent.sock.send_message(msg)
         self.message_entry.delete('1.0', END)
+
+    def on_resize(self, event):
+        # determine the ratio of old width/height to new width/height
+        self.width = event.width
+        self.height = event.height
+        # resize the canvas
+        self.configure(width=event.width)
+        self.text.configure(height=event.height, width=event.width)
+        self.message_entry.configure(width=event.width)
+        self.text.yview_moveto(1)
 
     def clear_window(self):
         _list = self.winfo_children()
@@ -180,15 +198,41 @@ class Socket(socket.socket, threading.Thread):
         socket.socket.__init__(self, socket.AF_INET, socket.SOCK_STREAM)
         threading.Thread.__init__(self, target=self.receive_messages, daemon=True)
         self.parent = parent
+        # encryption
+        if not os.path.isfile("sam.password"):
+            password = input("Please enter the password: ")
+            open("sam.password", 'w').write(password)
+        password_provided = open("sam.password", 'r').read()
+        password = password_provided.encode("utf-8")
+        salt = b'salt_'
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password))
+        self.f = Fernet(key)
+
+    def encrypt(self, msg):
+        msg = msg.encode("utf-8", "ignore")
+        msg = self.f.encrypt(msg)
+        return msg
+
+    def decrypt(self, msg):
+        msg = self.f.decrypt(msg)
+        return msg.decode('utf-8', 'ignore')
 
     def send_message(self, msg: str):
-        encoded_message = len(msg).to_bytes(4, "little") + msg.encode("utf-8")
+        msg = self.encrypt(msg)
+        encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
 
     def receive_messages(self):
         while True:
             bufflen = int.from_bytes(self.recv(4), "little")
-            msg = self.recv(bufflen).decode("utf-8")
+            msg = self.decrypt(self.recv(bufflen))
             if bufflen:
                 self.parent._chat_room.add_message(msg)
             else:

@@ -3,6 +3,12 @@ import threading
 import logging
 import sys
 import random
+from cryptography.fernet import Fernet
+import base64
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import os
 
 # logging setup
 root = logging.getLogger("SAM-Server")
@@ -40,6 +46,7 @@ class User:
 ip = ""
 port = 25469
 
+
 if "dev" in sys.argv:
     ip = "127.0.0.1"
 
@@ -49,6 +56,35 @@ users = []
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_root = None
 root.debug("Initialized socket")
+
+if not os.path.isfile("sam.password"):
+    password = input("Please enter a password for users to enter in order for them to decrypt messages\n: ")
+    open("sam.password", 'w').write(password)
+password_provided = open("sam.password", 'r').read()
+password = password_provided.encode("utf-8")
+
+salt = b'salt_'
+kdf = PBKDF2HMAC(
+    algorithm=hashes.SHA256(),
+    length=32,
+    salt=salt,
+    iterations=100000,
+    backend=default_backend()
+)
+key = base64.urlsafe_b64encode(kdf.derive(password))
+f = Fernet(key)
+
+root.debug(f"Using {password_provided} as the password for the encryption")
+
+
+def encrypt(msg):
+    msg = f.encrypt(msg)
+    return msg
+
+
+def decrypt(msg):
+    msg = f.decrypt(msg)
+    return msg.decode('utf-8', 'ignore')
 
 
 def assign_id():
@@ -62,7 +98,9 @@ def assign_id():
 def receive_data(user: User):
     try:
         bufflen = int.from_bytes(user.client.recv(4), "little")
-        data = user.client.recv(bufflen).decode("utf-8")
+        data = user.client.recv(bufflen)
+        if data:
+            data = decrypt(data)
         return data
     except socket.error as e:
         root.error(e)
@@ -72,7 +110,8 @@ def send_to_all(msg, user: User, send_username: bool):
     if send_username:
         msg = f"{user.username}: " + msg
     root.info(f"({user.userid} | {user.ip_address}) {msg}")
-    encoded_message = len(msg).to_bytes(4, "little") + msg.encode("utf-8")
+    msg = encrypt(msg.encode('utf-8', 'ignore'))
+    encoded_message = len(msg).to_bytes(4, "little") + msg
     for user in users:
         user.client.send(encoded_message)
 

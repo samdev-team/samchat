@@ -1,5 +1,9 @@
 .idea
 
+SAM-Chat-Client/sam.password
+SAM-Chat-Server/sam.password
+
+
 # Python ignore stuff
 # Byte-compiled / optimized / DLL files
 __pycache__/
