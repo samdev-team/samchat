@@ -265,7 +265,11 @@ class Socket(socket.socket, threading.Thread):
             bufflen = int.from_bytes(self.recv(4), "little")
             data = self.recv(bufflen)
             if data:
-                data = self.decrypt(data)
+                print(data)
+                try:
+                    data = self.decrypt(data)
+                except:
+                    data = "gay"
                 return data
         except socket.error as e:
             pass

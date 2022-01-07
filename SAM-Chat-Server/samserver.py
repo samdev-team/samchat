@@ -109,6 +109,7 @@ def receive_data(user: User):
 
 def send_message(msg, user: User):
     msg = encrypt(msg.encode('utf-8'))
+    print(msg)
     encoded_message = len(msg).to_bytes(4, "little") + msg
     user.client.send(encoded_message)
 
