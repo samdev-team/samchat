@@ -1,7 +1,7 @@
 .idea
 
 */sam.password
-versions/*
+versions
 SAM-Chat-*.tar.gz
 
 # Python ignore stuff
