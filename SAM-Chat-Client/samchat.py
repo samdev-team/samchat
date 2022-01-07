@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
 import time
 
-ip = "rozzanet.ddns.net"
+ip = "20.212.36.238"
 port = 25469
 
 if "dev" in sys.argv:
@@ -92,10 +92,6 @@ class StartMenu(ttk.Frame):
 
         no_space_username = self.username.replace(" ", "_")
         self.sock.send_message(no_space_username)
-        amount_of_messages = self.sock.receive_message()
-
-        for i in range(int(amount_of_messages)):
-            self.parent._chat_room.add_message(self.sock.receive_message())
 
         self.parent.chat_room(self.sock)
 
@@ -263,6 +259,7 @@ class Socket(socket.socket, threading.Thread):
     def receive_message(self):
         try:
             bufflen = int.from_bytes(self.recv(4), "little")
+            print(bufflen)
             data = self.recv(bufflen)
             if data:
                 print(data)

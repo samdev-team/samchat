@@ -125,8 +125,6 @@ def send_to_all(msg, user: User, send_username: bool):
 
 
 def send_previous_messages(user: User):
-    amount_of_messages = len(messages)
-    send_message(str(amount_of_messages), user)
     root.debug(f"({user.userid} | {user.ip_address}) Sending previous messages to user")
     for message in messages:
         send_message(message, user)
