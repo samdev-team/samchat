@@ -266,7 +266,8 @@ class Socket(socket.socket, threading.Thread):
                 try:
                     data = self.decrypt(data)
                 except:
-                    data = "gay"
+                    pass
+                print(f"Data: '{data}'")
                 return data
         except socket.error as e:
             pass
