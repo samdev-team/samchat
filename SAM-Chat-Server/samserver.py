@@ -101,9 +101,10 @@ def receive_data(user: User):
         data = user.client.recv(bufflen)
         if data:
             data = decrypt(data)
-        return data
-    except socket.error as e:
-        root.error(e)
+            return data
+        root.debug(f"({user.userid} | {user.ip_address}) Stopped receiving data from user")
+    except socket.error:
+        root.debug(f"({user.userid} | {user.ip_address}) Stopped receiving data from user")
 
 
 def send_message(msg, user: User):
