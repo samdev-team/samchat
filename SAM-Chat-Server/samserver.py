@@ -96,6 +96,7 @@ def assign_id():
 
 
 def receive_data(user: User):
+    print(messages, users)
     try:
         bufflen = int.from_bytes(user.client.recv(4), "little")
         data = user.client.recv(bufflen)
@@ -112,7 +113,7 @@ def send_message(msg, user: User):
     msg = encrypt(msg.encode('utf-8'))
     print(msg)
     encoded_message = len(msg).to_bytes(4, "little") + msg
-    print(len(msg))
+    print(len(msg), len(msg).to_bytes(4, "little"))
     user.client.send(encoded_message)
 
 
