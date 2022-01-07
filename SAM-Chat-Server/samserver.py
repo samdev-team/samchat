@@ -108,6 +108,7 @@ def receive_data(user: User):
 
 
 def send_message(msg, user: User):
+    print(msg)
     msg = encrypt(msg.encode('utf-8'))
     print(msg)
     encoded_message = len(msg).to_bytes(4, "little") + msg
@@ -119,10 +120,8 @@ def send_to_all(msg, user: User, send_username: bool):
         msg = f"{user.username}: " + msg
     messages.append(msg)
     root.info(f"({user.userid} | {user.ip_address}) {msg}")
-    msg = encrypt(msg.encode('utf-8', 'ignore'))
-    encoded_message = len(msg).to_bytes(4, "little") + msg
     for user in users:
-        user.client.send(encoded_message)
+        send_message(msg, user)
 
 
 def send_previous_messages(user: User):
