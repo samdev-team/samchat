@@ -3,6 +3,8 @@ import threading
 from tkinter import *
 from tkinter import ttk
 import sys
+
+import cryptography.exceptions
 from cryptography.fernet import Fernet
 import base64
 from cryptography.hazmat.backends import default_backend
@@ -11,7 +13,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
 import time
 
-ip = "20.212.36.238"
+ip = "rozzanet.ddns.net"
 port = 25469
 
 if "dev" in sys.argv:
@@ -67,10 +69,13 @@ class StartMenu(ttk.Frame):
         except socket.error:
             self.connecting_label.configure(text="Failed to connected (ip doxxed)\ntry again later")
 
-    def user_creation(self):
+    def user_creation(self, exists=False):
         self.clear_window()
         self.grid_rowconfigure(2, weight=0)
-        username_label = ttk.Label(self, text="Enter a username", style="three.TLabel")
+        username_label = ttk.Label(self, text="Enter a username", style="three.TLabel", justify=CENTER)
+
+        if exists:
+            username_label.configure(text="Username already exists\nEnter a username")
 
         username_label.grid(column=1, row=1, pady=15)
         self.username_input.grid(column=1, row=2)
@@ -78,7 +83,9 @@ class StartMenu(ttk.Frame):
             username_label.configure(text="Enter the password")
             self.parent.bind("<Return>", self.set_password)
         else:
-            self.sock.create_encryption()
+            if not exists:
+                self.sock.create_encryption()
+                self.sock.send_message("user")
             self.parent.bind("<Return>", self.send_user_data)
 
     def set_password(self, event):
@@ -93,8 +100,11 @@ class StartMenu(ttk.Frame):
             self.parent.unbind("<Return>")
             self.username = self.username.replace(" ", "_")
             self.sock.send_message(self.username)
-
-            self.parent.chat_room(self.sock)
+            status = self.sock.receive_message()
+            if status == "username_exists":
+                self.user_creation(True)
+            else:
+                self.parent.chat_room(self.sock)
 
     def clear_window(self):
         _list = self.winfo_children()
@@ -230,19 +240,18 @@ class Socket(socket.socket, threading.Thread):
         threading.Thread.__init__(self, target=self.receive_messages, daemon=True)
         self.parent = parent
         # encryption
+        self.kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=b'salt_',
+            iterations=100000,
+            backend=default_backend()
+        )
 
     def create_encryption(self):
         password_provided = open("sam.password", 'r').read()
         password = password_provided.encode("utf-8")
-        salt = b'salt_'
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-            backend=default_backend()
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password))
+        key = base64.urlsafe_b64encode(self.kdf.derive(password))
         self.f = Fernet(key)
 
     def encrypt(self, msg):
@@ -265,10 +274,7 @@ class Socket(socket.socket, threading.Thread):
             bufflen = int.from_bytes(bufflen_bytes, "little")
             data = self.recv(bufflen)
             if data:
-                try:
-                    data = self.decrypt(data)
-                except:
-                    pass
+                data = self.decrypt(data)
                 return data
         except socket.error as e:
             pass

@@ -3,6 +3,8 @@ import threading
 import logging
 import sys
 import random
+
+import cryptography.exceptions
 from cryptography.fernet import Fernet
 import base64
 from cryptography.hazmat.backends import default_backend
@@ -21,16 +23,24 @@ handler.setFormatter(formatter)
 root.addHandler(handler)
 
 
+class Room:
+    def __init__(self, client):
+        self.client = client
+        self.roomname = None
+        self.roomcode = None
+        self.messages = []
+        self.ip_address = None
+
+
 class User:
     def __init__(self, client):
         self.client = client
         self.username = None
-        self.userid = None
         self.ip_address = None
 
     def receive_messages(self):
         while server_running:
-            msg = receive_data(self)
+            msg = receive_user_message(self)
             if not msg:
                 break
             else:
@@ -39,16 +49,15 @@ class User:
 
     def remove(self):
         self.client.close()
-        users.remove(self)
+        del users[self.username]
         send_to_all(f"{self.username} has left the chat", self, False)
 
 
-ip = ""
 port = 25469
 
 server_running = True
-users = []
-messages = ["SAM-Chat -- LOl"]
+users = {}
+rooms = {}
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_root = None
@@ -60,11 +69,10 @@ if not os.path.isfile("sam.password"):
 password_provided = open("sam.password", 'r').read()
 password = password_provided.encode("utf-8")
 
-salt = b'salt_'
 kdf = PBKDF2HMAC(
     algorithm=hashes.SHA256(),
     length=32,
-    salt=salt,
+    salt=b'salt_',
     iterations=100000,
     backend=default_backend()
 )
@@ -72,6 +80,14 @@ key = base64.urlsafe_b64encode(kdf.derive(password))
 f = Fernet(key)
 
 root.debug(f"Using {password_provided} as the password for the encryption")
+
+
+def generate_room_code():
+    potential_roomcode = random.randint(100, 999)
+    if potential_roomcode in rooms.keys():
+        return generate_room_code()
+    else:
+        return str(potential_roomcode)
 
 
 def encrypt(msg):
@@ -84,24 +100,37 @@ def decrypt(msg):
     return msg.decode('utf-8', 'ignore')
 
 
-def assign_id():
-    userid = random.randint(100, 999)
-    for user in users:
-        if user.userid == userid:
-            assign_id()
-    return userid
-
-
-def receive_data(user: User):
+def receive_user_message(user: User):
     try:
-        bufflen = int.from_bytes(user.client.recv(4), "little")
-        data = user.client.recv(bufflen)
-        if data:
+        return receive_message(user.client, user.ip_address)
+    except socket.error:
+        root.debug(f"({user.ip_address}) Stopped receiving data from user")
+
+
+def receive_room_message(room: Room):
+    try:
+        return receive_message(room.client, room.ip_address)
+    except socket.error:
+        root.debug(f"({room.ip_address}) Stopped receiving data from room")
+
+
+def receive_client_message(client: socket.socket, address):
+    try:
+        return receive_message(client, address)
+    except socket.error:
+        root.debug(f"({address[0]}) Stopped receiving data from client")
+
+
+def receive_message(client: socket.socket, address):
+    bufflen = int.from_bytes(client.recv(4), "little")
+    data = client.recv(bufflen)
+    if data:
+        try:
             data = decrypt(data)
             return data
-        root.debug(f"({user.userid} | {user.ip_address}) Stopped receiving data from user")
-    except socket.error:
-        root.debug(f"({user.userid} | {user.ip_address}) Stopped receiving data from user")
+        except cryptography.fernet.InvalidToken:
+            root.debug(f"({address[0]}) client attempted to send a message with the wrong password")
+    raise socket.error
 
 
 def send_message(msg, user: User):
@@ -110,46 +139,75 @@ def send_message(msg, user: User):
     user.client.send(encoded_message)
 
 
+def send_room_message(msg, room: Room):
+    msg = encrypt(msg.encode('utf-8'))
+    encoded_message = len(msg).to_bytes(4, "little") + msg
+    room.client.send(encoded_message)
+
+
 def send_to_all(msg, user: User, send_username: bool):
     if send_username:
         msg = f"{user.username}: " + msg
-    messages.insert(0, msg)
-    root.info(f"({user.userid} | {user.ip_address}) {msg}")
-    for user in users:
+    # messages.insert(0, msg)
+    root.info(f"({user.ip_address}) {msg}")
+    for user in users.values():
         send_message(msg, user)
 
 
-def send_previous_messages(user: User):
-    root.debug(f"({user.userid} | {user.ip_address}) Sending previous messages to user")
-    different_messages = 0
-    messages_to_send = []
-    for message in messages:
-        messages_to_send.insert(0, message)
-        different_messages += 1
-        if different_messages == 20:
-            break
+# def send_previous_messages(user: User):
+#     root.debug(f"({user.ip_address}) Sending previous messages to user")
+#     different_messages = 0
+#     messages_to_send = []
+#     for message in messages:
+#         messages_to_send.insert(0, message)
+#         different_messages += 1
+#         if different_messages == 20:
+#             break
+#
+#     for message in messages_to_send:
+#         send_message(message, user)
 
-    for message in messages_to_send:
-        send_message(message, user)
+
+def get_username(user: User):
+    username = receive_user_message(user)
+    if username in users.keys():
+        send_message("username_exists", user)
+        return get_username(user)
+    else:
+        send_message("username_ok", user)
+        return username
 
 
 def add_client(client: socket.socket, address):
     user = User(client)
-    user.userid = assign_id()
     user.ip_address = address[0]
-    root.debug(f"Assigned new userid for new connection: {user.userid}")
-    root.debug(f"({user.userid} | {user.ip_address}) Waiting for username to be sent")
-    username = receive_data(user)
-    root.debug(f"({user.userid} | {user.ip_address}) Received username {username}")
+    root.debug(f"({user.ip_address}) Waiting for username to be sent")
+    username = get_username(user)
+    print(username)
     if username:
+        root.debug(f"({user.ip_address}) Received username {username}")
         user.username = username
-        users.append(user)
-        root.debug(f"({user.userid} | {user.ip_address}) Added user to current connections")
-        send_previous_messages(user)
-        root.debug(f"({user.userid} | {user.ip_address}) Sent messages")
-        root.debug(f"({user.userid} | {user.ip_address}) User is ready to connect to the chat room")
+        users[username] = user
+        root.debug(f"({user.ip_address}) Added user to current connections")
+        # send_previous_messages(user)
+        root.debug(f"({user.ip_address}) Sent messages")
+        root.debug(f"({user.ip_address}) User is ready to connect to the chat room")
         send_to_all(f"{username} has connected to the chat", user, False)
         user.receive_messages()
+
+
+def add_room(client: socket.socket, address):
+    room = Room(client)
+    room.ip_address = address[0]
+    root.debug(f"({room.ip_address}) Waiting for roomname to be sent")
+    roomname = receive_room_message(room)
+    if roomname:
+        root.debug(f"({room.ip_address}) Received roomname {roomname}")
+        room.roomname = roomname
+        room.roomcode = generate_room_code()
+        rooms[room.roomcode] = room
+        send_room_message(room.roomcode, room)
+        root.debug("Sent roomcode to dedicated room")
 
 
 def connection_listener():
@@ -159,14 +217,22 @@ def connection_listener():
     while server_running:
         conn, addr = sock.accept()
         root.info(f"New connection from {addr[0]}")
-        threading.Thread(target=lambda: add_client(conn, addr), daemon=True).start()
+        connection_type = receive_client_message(conn, addr)
+        if connection_type == "user":
+            root.debug(f"{addr[0]} is a user connection type")
+            threading.Thread(target=lambda: add_client(conn, addr), daemon=True).start()
+        elif connection_type == "room":
+            root.debug(f"{addr[0]} is a room connection type")
+            threading.Thread(target=lambda: add_room(conn, addr), daemon=True).start()
+        else:
+            if connection_type:
+                root.error(f"({addr[0]}) Incorrect connection type")
 
 
 try:
-    sock.bind((ip, port))
-    if ip == "":
-        ip = "every network interface"
-    root.debug(f"Binded socket to {ip} on port {port}")
+    sock.bind(("", port))
+
+    root.debug(f"Binded socket to every network interface on port {port}")
     root.debug("Creating server root user")
     server_root = User(None)
     server_root.username = "Server"
