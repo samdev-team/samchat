@@ -46,9 +46,6 @@ class User:
 ip = ""
 port = 25469
 
-if "dev" in sys.argv:
-    ip = "127.0.0.1"
-
 server_running = True
 users = []
 messages = ["SAM-Chat -- LOl"]
@@ -96,7 +93,6 @@ def assign_id():
 
 
 def receive_data(user: User):
-    print(messages, users)
     try:
         bufflen = int.from_bytes(user.client.recv(4), "little")
         data = user.client.recv(bufflen)
@@ -109,18 +105,15 @@ def receive_data(user: User):
 
 
 def send_message(msg, user: User):
-    print(msg)
     msg = encrypt(msg.encode('utf-8'))
-    print(msg)
     encoded_message = len(msg).to_bytes(4, "little") + msg
-    print(len(msg), len(msg).to_bytes(4, "little"))
     user.client.send(encoded_message)
 
 
 def send_to_all(msg, user: User, send_username: bool):
     if send_username:
         msg = f"{user.username}: " + msg
-    messages.append(msg)
+    messages.insert(0, msg)
     root.info(f"({user.userid} | {user.ip_address}) {msg}")
     for user in users:
         send_message(msg, user)
@@ -128,7 +121,15 @@ def send_to_all(msg, user: User, send_username: bool):
 
 def send_previous_messages(user: User):
     root.debug(f"({user.userid} | {user.ip_address}) Sending previous messages to user")
+    different_messages = 0
+    messages_to_send = []
     for message in messages:
+        messages_to_send.insert(0, message)
+        different_messages += 1
+        if different_messages == 20:
+            break
+
+    for message in messages_to_send:
         send_message(message, user)
 
 

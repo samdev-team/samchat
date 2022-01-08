@@ -15,6 +15,7 @@ ip = "20.212.36.238"
 port = 25469
 
 if "dev" in sys.argv:
+    print("Starting in dev mode")
     ip = "127.0.0.1"
 
 
@@ -78,7 +79,7 @@ class StartMenu(ttk.Frame):
             self.parent.bind("<Return>", self.set_password)
         else:
             self.sock.create_encryption()
-            self.parent.bind("<Return>", self.send_user_data_get_old_messages)
+            self.parent.bind("<Return>", self.send_user_data)
 
     def set_password(self, event):
         password = self.username_input.get()
@@ -86,14 +87,14 @@ class StartMenu(ttk.Frame):
         self.username_input.delete(0, END)
         self.user_creation()
 
-    def send_user_data_get_old_messages(self, event):
-        self.parent.unbind("<Return>")
+    def send_user_data(self, event):
         self.username = self.username_input.get()
+        if not self.username == "":
+            self.parent.unbind("<Return>")
+            self.username = self.username.replace(" ", "_")
+            self.sock.send_message(self.username)
 
-        no_space_username = self.username.replace(" ", "_")
-        self.sock.send_message(no_space_username)
-
-        self.parent.chat_room(self.sock)
+            self.parent.chat_room(self.sock)
 
     def clear_window(self):
         _list = self.winfo_children()
@@ -139,8 +140,10 @@ class ChatRoom(ttk.Frame):
     def send_message(self, event):
         msg = self.message_entry.get(1.0, END)
         msg = msg.rstrip("\n")
-        self.parent.sock.send_message(msg)
         self.message_entry.delete('1.0', END)
+        if not msg == "":
+            self.parent.sock.send_message(msg)
+            # self.add_message(f"You ({self.parent._start_menu.username}): {msg}")
 
     def on_resize(self, event):
         # determine the ratio of old width/height to new width/height
@@ -258,16 +261,14 @@ class Socket(socket.socket, threading.Thread):
 
     def receive_message(self):
         try:
-            bufflen = int.from_bytes(self.recv(4), "little")
-            print(bufflen)
+            bufflen_bytes = self.recv(4)
+            bufflen = int.from_bytes(bufflen_bytes, "little")
             data = self.recv(bufflen)
             if data:
-                print(data)
                 try:
                     data = self.decrypt(data)
                 except:
                     pass
-                print(f"Data: '{data}'")
                 return data
         except socket.error as e:
             pass
