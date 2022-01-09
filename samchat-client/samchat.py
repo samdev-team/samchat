@@ -67,7 +67,7 @@ class StartMenu(ttk.Frame):
             self.sock.connect((ip, port))
             self.user_creation()
         except socket.error:
-            self.connecting_label.configure(text="Failed to connected (ip doxxed)\ntry again later")
+            self.connecting_label.configure(text="Failed to connected (ip doxxed)\ntry again later", justify=CENTER)
 
     def user_creation(self, exists=False):
         self.clear_window()
@@ -121,6 +121,8 @@ class ChatRoom(ttk.Frame):
         ttk.Frame.__init__(self, parent)
         self.parent = parent
 
+        self.username = None
+
         self.configure(style="one.TFrame")
 
         self.text = Text(self, width=70, height=15, font=('Consolas', 16), state=DISABLED,
@@ -152,7 +154,7 @@ class ChatRoom(ttk.Frame):
         msg = msg.rstrip("\n")
         self.message_entry.delete('1.0', END)
         if not msg == "":
-            self.parent.sock.send_message(msg)
+            self.parent.sock.send_formatted_message('0', 'user', self.username, "server", msg)
             # self.add_message(f"You ({self.parent._start_menu.username}): {msg}")
 
     def on_resize(self, event):
@@ -229,7 +231,7 @@ class Application(Tk):
         self.username_label1.configure(text=self._start_menu.username)
         self.sock = sock
         sock.start()
-
+        self._chat_room.username = self._start_menu.username
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
 
@@ -241,7 +243,7 @@ class Socket(socket.socket, threading.Thread):
         self.parent = parent
         # encryption
         self.kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
+            algorithm=hashes.SHA512(),
             length=32,
             salt=b'salt_',
             iterations=100000,
@@ -263,10 +265,21 @@ class Socket(socket.socket, threading.Thread):
         msg = self.f.decrypt(msg)
         return msg.decode('utf-8', 'ignore')
 
+    def send_formatted_message(self, message_type, room_or_user, username, recipient, message):
+        msg = f"{message_type}\n" \
+              f"{room_or_user}\n" \
+              f"{username}\n" \
+              f"{recipient}\n" \
+              f"{message}"
+        self.send_message(msg)
+
     def send_message(self, msg: str):
         msg = self.encrypt(msg)
         encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
+
+    def receive_formatted_message(self):
+        pass
 
     def receive_message(self):
         try:
@@ -276,6 +289,8 @@ class Socket(socket.socket, threading.Thread):
             if data:
                 data = self.decrypt(data)
                 return data
+            else:
+                self.close()
         except socket.error as e:
             pass
 
@@ -285,8 +300,12 @@ class Socket(socket.socket, threading.Thread):
             if msg:
                 self.parent._chat_room.add_message(msg)
             else:
-                self.close()
                 break
+        self.parent.clear_window()
+        ttk.Label(text="Lost connection with the server\nServer is probably down by "
+                                          "accident\nAMOUG US", justify=CENTER, style="three.TLabel").grid(column=1, row=1)
+        self.parent.username_label.place_forget()
+        self.parent.username_label1.place_forget()
 
 
 app = Application()

@@ -80,5 +80,4 @@ roomcode = sock.receive_message()
 
 print(roomcode)
 
-while True:
-    sock.receive_message()
+sock.send_message("hi")
