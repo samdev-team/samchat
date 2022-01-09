@@ -206,8 +206,8 @@ def add_client(client: socket.socket, address):
         user.username = username
         users[username] = user
         root.debug(f"({user.ip_address}) Added user to current connections")
-        send_previous_messages(user)
-        root.debug(f"({user.ip_address}) Sent messages")
+        # send_previous_messages(user)
+        # root.debug(f"({user.ip_address}) Sent messages")
         root.debug(f"({user.ip_address}) User is ready to connect to the chat room")
         send_to_all(f"{username} has connected to the chat", user, False)
         user.receive_messages()
