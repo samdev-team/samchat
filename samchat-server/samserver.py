@@ -143,8 +143,8 @@ def decrypt(msg):
 
 
 def receive_message(client: socket.socket, address):
-    bufflen = int.from_bytes(client.recv(4), "little")
     try:
+        bufflen = int.from_bytes(client.recv(4), "little")
         data = client.recv(bufflen)
         if data:
             try:
@@ -153,7 +153,7 @@ def receive_message(client: socket.socket, address):
             except cryptography.fernet.InvalidToken:
                 root.debug(f"({address}) client attempted to send a message with the wrong password")
         raise socket.error
-    except socket.error:
+    except socket.error or ConnectionResetError:
         root.debug(f"({address}) Stopped receiving data from client")
 
 

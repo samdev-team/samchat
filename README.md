@@ -24,10 +24,10 @@ can join rooms and send messages in them/connect to voice chat
    - message - string
  
 ### Message Example
-message_type : (0, 1, 2, 3)\
-user_or_room : (0, 1)\
-message_author : username\
-message recipient: recipient username\
-message
+message_type : 0\
+user_or_room : 0\
+message_author : blocky\
+message recipient: rozza\
+message: i like bob
 
  
