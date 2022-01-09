@@ -179,7 +179,7 @@ def send_previous_messages(user: User):
     for message in messages:
         messages_to_send.insert(0, message)
         different_messages += 1
-        if different_messages == 20:
+        if different_messages == 10:
             break
 
     for message in messages_to_send:
