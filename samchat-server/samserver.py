@@ -112,7 +112,7 @@ def read_formatted_message(message):
         "message_author": message[2],
         "message_recipient": message[3],
     }
-    message = " ".join(message[4:])
+    message = "\n".join(message[4:])
     return message_headers, message
 
 
@@ -146,6 +146,7 @@ def receive_message(client: socket.socket, address):
     try:
         bufflen = int.from_bytes(client.recv(4), "little")
         data = client.recv(bufflen)
+        print(data)
         if data:
             try:
                 data = decrypt(data)
