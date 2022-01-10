@@ -18,7 +18,7 @@ port = 25469
 
 if "dev" in sys.argv:
     print("Starting in dev mode")
-    ip = "20.212.36.238"
+    ip = "127.0.0.1"
 
 
 class StartMenu(ttk.Frame):
@@ -283,10 +283,15 @@ class Socket(socket.socket, threading.Thread):
 
     def receive_message(self):
         try:
-            bufflen_bytes = self.recv(4)
-            bufflen = int.from_bytes(bufflen_bytes, "little")
-            data = self.recv(bufflen)
-            print(data)
+            bufflen = int.from_bytes(self.recv(4), "little")
+            data = b''
+            while True:
+                data_part = self.recv(bufflen)
+                data += data_part
+                if len(data_part) == bufflen:
+                    break
+                else:
+                    bufflen -= len(data_part)
             if data:
                 data = self.decrypt(data)
                 return data

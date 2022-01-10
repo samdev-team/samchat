@@ -64,7 +64,7 @@ class User(Client):
             if not msg:
                 break
             else:
-                message_headers, message = read_formatted_message(msg)
+                message_headers, message = read_formatted_message(msg, self.username)
                 send_to_all(message, self, True)
         self.remove()
 
@@ -104,15 +104,16 @@ f = Fernet(key)
 root.debug(f"Using {password_provided} as the password for the encryption")
 
 
-def read_formatted_message(message):
+def read_formatted_message(message, username):
     message = message.splitlines()
+    print(message)
     message_headers = {
         "message_type": message[0],
         "user_or_room": message[1],
         "message_author": message[2],
         "message_recipient": message[3],
     }
-    message = "\n".join(message[4:])
+    message = ("\n" + " " * len(username) + "  ").join(message[4:])
     return message_headers, message
 
 
@@ -145,8 +146,14 @@ def decrypt(msg):
 def receive_message(client: socket.socket, address):
     try:
         bufflen = int.from_bytes(client.recv(4), "little")
-        data = client.recv(bufflen)
-        print(data)
+        data = b''
+        while True:
+            data_part = client.recv(bufflen)
+            data += data_part
+            if len(data_part) == bufflen:
+                break
+            else:
+                bufflen -= len(data_part)
         if data:
             try:
                 data = decrypt(data)
@@ -175,13 +182,9 @@ def send_to_all(msg, user: User, send_username: bool):
 
 def send_previous_messages(user: User):
     root.debug(f"({user.ip_address}) Sending previous messages to user")
-    different_messages = 0
     messages_to_send = []
     for message in messages:
         messages_to_send.insert(0, message)
-        different_messages += 1
-        if different_messages == 10:
-            break
 
     for message in messages_to_send:
         send_message(message, user.client)
@@ -207,8 +210,8 @@ def add_client(client: socket.socket, address):
         user.username = username
         users[username] = user
         root.debug(f"({user.ip_address}) Added user to current connections")
-        # send_previous_messages(user)
-        # root.debug(f"({user.ip_address}) Sent messages")
+        send_previous_messages(user)
+        root.debug(f"({user.ip_address}) Sent messages")
         root.debug(f"({user.ip_address}) User is ready to connect to the chat room")
         send_to_all(f"{username} has connected to the chat", user, False)
         user.receive_messages()
@@ -256,6 +259,7 @@ def connection_listener():
                 room.client.close()
             root.info("Server shutdown complete, bye :)")
             exit(0)
+
 
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
