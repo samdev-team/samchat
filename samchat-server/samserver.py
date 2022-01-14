@@ -1,3 +1,15 @@
+# SAM-Chat is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# SAM-Chat is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with this
+# program. If not, see <https://www.gnu.org/licenses/>.
+
 import socket
 import threading
 import logging
@@ -35,7 +47,6 @@ class Room(Client):
         Client.__init__(self, client)
         self.roomname = None
         self.roomcode = None
-        self.messages = []
 
     def receive_messages(self):
         while server_running:
@@ -48,7 +59,6 @@ class Room(Client):
 
     def remove(self):
         self.client.close()
-
         del rooms[self.roomcode]
         root.debug(f"({self.ip_address}) Room has disconnected from the server")
 
@@ -65,16 +75,20 @@ class User(Client):
                 break
             else:
                 message_headers, message = read_formatted_message(msg, self.username)
-                send_to_all(message, self, True)
+                process_message(message_headers, message, self)
         self.remove()
 
     def remove(self):
         self.client.close()
         del users[self.username]
-        send_to_all(f"{self.username} has left the chat", self, False)
+        message = f"!{self.username} has left the chat"
+        send_to_all(create_formatted_message(message_type='0', message_author=self.username, message_recipient="server",
+                                             message=message), message, self)
 
 
 port = 25469
+
+version = 5
 
 server_running = True
 users = {}
@@ -106,23 +120,55 @@ root.debug(f"Using {password_provided} as the password for the encryption")
 
 def read_formatted_message(message, username):
     message = message.splitlines()
-    print(message)
     message_headers = {
         "message_type": message[0],
-        "user_or_room": message[1],
-        "message_author": message[2],
-        "message_recipient": message[3],
+        "message_author": message[1],
+        "message_recipient": message[2],
     }
-    message = ("\n" + " " * len(username) + "  ").join(message[4:])
+    message = ("\n" + " " * len(username) + "  ").join(message[3:])
     return message_headers, message
 
 
-def send_formatted_message():
-    pass
+def create_formatted_message(message_type, message_author, message_recipient, message):
+    message = f"{message_type}\n" \
+              f"{message_author}\n" \
+              f"{message_recipient}\n" \
+              f"{message}"
+    return message
 
 
-def process_message(message_headers, message):
-    pass
+def process_message(message_headers, message, user: User):
+    if message_headers["message_type"] == '0':
+        if message_headers['message_recipient'] == "server":
+            send_to_all(create_formatted_message(message_type='0', message_author=message_headers['message_author'],
+                                                 message_recipient="server", message=message), message, user)
+        else:
+            if message_headers["message_recipient"] in rooms.keys():
+                room = rooms[message_headers["message_recipient"]]
+                send_message(message, room.client)
+
+
+    elif message_headers["message_type"] == '1':
+        print("this is a api message")
+        process_api_message(message, user)
+
+
+def process_api_message(message, user: User):
+    message = message.split()
+
+    if message[0] == "joinroom":
+        if not message[1] == "server":
+            if message[1] in rooms.keys():
+                root.debug(f"({user.ip_address}) {user.username} is joining room {message[1]} "
+                           f"({rooms[message[1]].roomname})")
+            else:
+                send_message(create_formatted_message(message_type="0", message_author="server",
+                                                      message_recipient=user.username,
+                                                      message=f"""The room "{message[1]}" doesn't exist"""), user.client)
+        else:
+            send_message(create_formatted_message(message_type="0", message_author="server",
+                                                  message_recipient=user.username,
+                                                  message="You cant join the server room"), user.client)
 
 
 def generate_room_code():
@@ -171,23 +217,26 @@ def send_message(msg, client: socket.socket):
     client.send(encoded_message)
 
 
-def send_to_all(msg, user: User, send_username: bool):
-    if send_username:
-        msg = f"{user.username}: " + msg
-    messages.insert(0, msg)
-    root.info(f"({user.ip_address}) {msg}")
+def send_to_all(formatted_message, message, user: User):
+    messages.insert(0, [user, message])
+    if message.startswith("!"):
+        message = message[1:]
+    else:
+        message = f"{user.username}: {message}"
+    root.info(f"({user.ip_address}) {message}")
     for user in users.values():
-        send_message(msg, user.client)
+        send_message(formatted_message, user.client)
 
 
 def send_previous_messages(user: User):
     root.debug(f"({user.ip_address}) Sending previous messages to user")
     messages_to_send = []
     for message in messages:
-        messages_to_send.insert(0, message)
+        messages_to_send.insert(0, [message[0], message[1]])
 
     for message in messages_to_send:
-        send_message(message, user.client)
+        send_message(create_formatted_message(message_type='0', message_author=message[0].username,
+                                              message_recipient="server", message=message[1]), user.client)
 
 
 def get_username(user: User):
@@ -203,18 +252,32 @@ def get_username(user: User):
 def add_client(client: socket.socket, address):
     user = User(client)
     user.ip_address = address[0]
-    root.debug(f"({user.ip_address}) Waiting for username to be sent")
-    username = get_username(user)
-    if username:
-        root.debug(f"({user.ip_address}) Received username {username}")
-        user.username = username
-        users[username] = user
-        root.debug(f"({user.ip_address}) Added user to current connections")
-        send_previous_messages(user)
-        root.debug(f"({user.ip_address}) Sent messages")
-        root.debug(f"({user.ip_address}) User is ready to connect to the chat room")
-        send_to_all(f"{username} has connected to the chat", user, False)
-        user.receive_messages()
+    root.debug("Checking client version")
+    client_version = int(receive_message(user.client, user.ip_address))
+    if client_version < version:
+        send_message("old_version_client", user.client)
+        root.debug("Client version is older than server version")
+    elif client_version > version:
+        send_message("old_version_server", user.client)
+        root.info(f"The current server version {version} is out of date, pull the repo to get the latest server")
+    elif client_version == version:
+        send_message("version_good", user.client)
+        root.debug("Client version matches server version")
+        root.debug(f"({user.ip_address}) Waiting for username to be sent")
+        username = get_username(user)
+        if username:
+            root.debug(f"({user.ip_address}) Received username {username}")
+            user.username = username
+            send_previous_messages(user)
+            root.debug(f"({user.ip_address}) Sent messages")
+            root.debug(f"({user.ip_address}) User is ready to join to the chat room")
+            users[username] = user
+            root.debug(f"({user.ip_address}) Added user to current connections")
+            message = f"!{username} has connected to the chat"
+            send_to_all(
+                create_formatted_message(message_type='0', message_author=user.username, message_recipient="server",
+                                         message=message), message, user)
+            user.receive_messages()
 
 
 def add_room(client: socket.socket, address):
@@ -228,7 +291,8 @@ def add_room(client: socket.socket, address):
         room.roomcode = generate_room_code()
         rooms[room.roomcode] = room
         send_message(room.roomcode, room.client)
-        root.debug("Sent roomcode to dedicated room")
+        root.debug("Sent roomcode to dedicated samroom")
+        room.receive_messages()
 
 
 def connection_listener():
@@ -239,7 +303,7 @@ def connection_listener():
         try:
             conn, addr = sock.accept()
             root.info(f"New connection from {addr[0]}")
-            connection_type = receive_message(conn, addr)
+            connection_type = receive_message(conn, addr[0])
             if connection_type == "user":
                 root.debug(f"{addr[0]} is a user connection type")
                 threading.Thread(target=lambda: add_client(conn, addr), daemon=True).start()

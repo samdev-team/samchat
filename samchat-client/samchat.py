@@ -1,9 +1,22 @@
+# SAM-Chat is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# SAM-Chat is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with this
+# program. If not, see <https://www.gnu.org/licenses/>.
+
+
 import socket
 import threading
+import tkinter
 from tkinter import *
 from tkinter import ttk
 import sys
-
 import cryptography.exceptions
 from cryptography.fernet import Fernet
 import base64
@@ -15,6 +28,7 @@ import time
 
 ip = "rozzanet.ddns.net"
 port = 25469
+version = "5"
 
 if "dev" in sys.argv:
     print("Starting in dev mode")
@@ -42,7 +56,6 @@ class StartMenu(ttk.Frame):
         ttk.Button(self, text="Connect", style="one.TButton", padding=10, width=20, command=self.connect_menu).grid(
             row=3, column=1)
         self.connecting_label = ttk.Label(self, text="Connecting", style="three.TLabel")
-
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(4, weight=1)
@@ -71,6 +84,7 @@ class StartMenu(ttk.Frame):
 
     def user_creation(self, exists=False):
         self.clear_window()
+        self.parent.unbind("<Return>")
         self.grid_rowconfigure(2, weight=0)
         username_label = ttk.Label(self, text="Enter a username", style="three.TLabel", justify=CENTER)
 
@@ -86,7 +100,21 @@ class StartMenu(ttk.Frame):
             if not exists:
                 self.sock.create_encryption()
                 self.sock.send_message("user")
-            self.parent.bind("<Return>", self.send_user_data)
+
+                self.sock.send_message(version)
+                confirmation = self.sock.receive_message()
+                if confirmation == "old_version_client":
+                    username_label.configure(text="You are running an older version of SAM-Chat\n"
+                                                  "Please download the latest version at\n"
+                                                  "github.com/blockbuster-exe/SAM-Chat")
+                    self.username_input.grid_forget()
+                elif confirmation == "old_version_server":
+                    username_label.configure(text="The server is running an older version\n"
+                                                  "of SAM-Chat. Please wait until the \n"
+                                                  "server maintainers update \nthe server to the latest version")
+                    self.username_input.grid_forget()
+                elif confirmation == "version_good":
+                    self.parent.bind("<Return>", self.send_user_data)
 
     def set_password(self, event):
         password = self.username_input.get()
@@ -122,6 +150,8 @@ class ChatRoom(ttk.Frame):
         self.parent = parent
 
         self.username = None
+        self.current_samroom = None
+        self.samrooms = {}
 
         self.configure(style="one.TFrame")
 
@@ -131,7 +161,7 @@ class ChatRoom(ttk.Frame):
         for i in range(100):
             self.text.insert(END, "\n")
         self.text.configure(state=DISABLED)
-        self.message_entry = Text(self, font=('Consolas', 16), width=50, height=2,
+        self.message_entry = Text(self, font=('Consolas', 16), width=5, height=2,
                                   background=self.parent.background_colour, foreground="white",
                                   insertbackground='white', borderwidth=0, border=2)
 
@@ -140,12 +170,39 @@ class ChatRoom(ttk.Frame):
         self.text.pack(side=BOTTOM, padx=15)
         self.text.yview_moveto(1)
 
+        # create default server room
+        self.samrooms["server"] = []
+        self.current_samroom = "server"
+        print(self.current_samroom)
+        print(self.samrooms)
+
         self.parent.bind("<Return>", self.send_message)
         self.parent.bind("<Configure>", self.on_resize)
 
-    def add_message(self, msg):
+    def add_samroom(self, roomcode):
+        self.samrooms[roomcode] = []
+        self.current_samroom = roomcode
+
+    def change_samroom(self, roomcode):
+        if not self.samrooms.get(roomcode):
+            pass
+
         self.text.configure(state=NORMAL)
-        self.text.insert(END, f"\n{msg}")
+        self.text.delete('1.0', END)
+        self.text.configure(state=DISABLED)
+        self.text.yview_moveto(1)
+
+        for message in self.samrooms.get(roomcode):
+            self.add_message(message)
+
+    def add_room_message(self, message_headers, message):
+        self.samrooms[message_headers["message_recipient"]].append(message)
+        if message_headers["message_recipient"] == self.current_samroom:
+            self.add_message(message)
+
+    def add_message(self, message):
+        self.text.configure(state=NORMAL)
+        self.text.insert(END, f"\n{message}")
         self.text.configure(state=DISABLED)
         self.text.yview_moveto(1)
 
@@ -153,9 +210,11 @@ class ChatRoom(ttk.Frame):
         msg = self.message_entry.get(1.0, END)
         msg = msg.rstrip("\n")
         self.message_entry.delete('1.0', END)
-        if not msg == "":
-            self.parent.sock.send_formatted_message('0', 'user', self.username, "server", msg)
-            # self.add_message(f"You ({self.parent._start_menu.username}): {msg}")
+        if msg.startswith("!"):
+            self.parent.sock.process_command(msg)
+        elif not msg == "":
+            self.parent.sock.send_formatted_message('0', self.username, self.current_samroom, msg)
+            # self.add_message(f"{self.username}: {msg}")
 
     def on_resize(self, event):
         # determine the ratio of old width/height to new width/height
@@ -230,10 +289,11 @@ class Application(Tk):
         self.username_label.configure(text=f"You are logged in as")
         self.username_label1.configure(text=self._start_menu.username)
         self.sock = sock
-        sock.start()
+        sock.username = self._start_menu.username
         self._chat_room.username = self._start_menu.username
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
+        sock.start()
 
 
 class Socket(socket.socket, threading.Thread):
@@ -241,6 +301,7 @@ class Socket(socket.socket, threading.Thread):
         socket.socket.__init__(self, socket.AF_INET, socket.SOCK_STREAM)
         threading.Thread.__init__(self, target=self.receive_messages, daemon=True)
         self.parent = parent
+        self.username = None
         # encryption
         self.kdf = PBKDF2HMAC(
             algorithm=hashes.SHA512(),
@@ -265,9 +326,31 @@ class Socket(socket.socket, threading.Thread):
         msg = self.f.decrypt(msg)
         return msg.decode('utf-8', 'ignore')
 
-    def send_formatted_message(self, message_type, room_or_user, username, recipient, message):
+    def process_command(self, message):
+        message = message[1:].split()
+        if message[0] == "fetch":
+            if len(message[1:]) == 1:
+                self.send_formatted_message(message_type="1", username=self.username, recipient="server",
+                                            message=f"fetch {message[1]}")
+            else:
+                print(f"Too many arguments, expected 1 got {len(message)}")
+
+        if message[0] == "addroom":
+            if len(message[1:]) == 1:
+                self.send_formatted_message(message_type="1", username=self.username, recipient="server",
+                                            message=f"joinroom {message[1]}")
+                self.parent._chat_room.add_samroom(message[1])
+            else:
+                print(f"Too many arguments, expected 1 got {len(message)}")
+
+        if message[0] == "changeroom":
+            if len(message[1:]) == 1:
+                self.parent._chat_room.change_samroom(message[1])
+            else:
+                print(f"Too many arguments, expected 1 got {len(message)}")
+
+    def send_formatted_message(self, message_type, username, recipient, message):
         msg = f"{message_type}\n" \
-              f"{room_or_user}\n" \
               f"{username}\n" \
               f"{recipient}\n" \
               f"{message}"
@@ -278,8 +361,20 @@ class Socket(socket.socket, threading.Thread):
         encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
 
-    def receive_formatted_message(self):
-        pass
+    def read_formatted_message(self, formatted_message):
+        formatted_message = formatted_message.splitlines()
+        message_headers = {
+            "message_type": formatted_message[0],
+            "message_author": formatted_message[1],
+            "message_recipient": formatted_message[2]
+        }
+        message = "".join(formatted_message[3:])
+        if message.startswith("!"):
+            message = message[1:]
+        else:
+            message = f"{message_headers['message_author']}: {message}"
+        print(message_headers, message)
+        return message_headers, message
 
     def receive_message(self):
         try:
@@ -302,14 +397,18 @@ class Socket(socket.socket, threading.Thread):
 
     def receive_messages(self):
         while True:
-            msg = self.receive_message()
-            if msg:
-                self.parent._chat_room.add_message(msg)
+            formatted_message = self.receive_message()
+            if formatted_message:
+                message_headers, message = self.read_formatted_message(formatted_message)
+                if message_headers["message_recipient"] == self.username:
+                    self.parent._chat_room.add_message(f"{message}")
+                else:
+                    self.parent._chat_room.add_room_message(message_headers, message)
             else:
                 break
         self.parent.clear_window()
         ttk.Label(text="Lost connection with the server\nServer is probably down by "
-                                          "accident\nAMOUG US", justify=CENTER, style="three.TLabel").grid(column=1, row=1)
+                       "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)
         self.parent.username_label.place_forget()
         self.parent.username_label1.place_forget()
 

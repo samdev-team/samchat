@@ -1,3 +1,16 @@
+# SAM-Chat is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# SAM-Chat is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with this
+# program. If not, see <https://www.gnu.org/licenses/>.
+
+
 import socket
 import threading
 import cryptography.exceptions
@@ -15,7 +28,7 @@ class Socket(socket.socket, threading.Thread):
 
         # encryption
         self.kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
+            algorithm=hashes.SHA512(),
             length=32,
             salt=b'salt_',
             iterations=100000,
@@ -37,31 +50,61 @@ class Socket(socket.socket, threading.Thread):
         msg = self.f.decrypt(msg)
         return msg.decode('utf-8', 'ignore')
 
+
+    def send_formatted_message(self, message_type, username, recipient, message):
+        msg = f"{message_type}\n" \
+              f"{username}\n" \
+              f"{recipient}\n" \
+              f"{message}"
+        self.send_message(msg)
+
     def send_message(self, msg: str):
         msg = self.encrypt(msg)
         encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
 
+    def read_formatted_message(self, formatted_message):
+        formatted_message = formatted_message.splitlines()
+        message_headers = {
+            "message_type": formatted_message[0],
+            "message_author": formatted_message[1],
+            "message_recipient": formatted_message[2]
+        }
+        message = "".join(formatted_message[3:])
+        if message.startswith("!"):
+            message = message[1:]
+        else:
+            message = f"{message_headers['message_author']}: {message}"
+        print(message_headers, message)
+        return message_headers, message
+
     def receive_message(self):
         try:
-            bufflen_bytes = self.recv(4)
-            bufflen = int.from_bytes(bufflen_bytes, "little")
-            data = self.recv(bufflen)
+            bufflen = int.from_bytes(self.recv(4), "little")
+            data = b''
+            while True:
+                data_part = self.recv(bufflen)
+                data += data_part
+                if len(data_part) == bufflen:
+                    break
+                else:
+                    bufflen -= len(data_part)
             if data:
                 data = self.decrypt(data)
                 return data
+            else:
+                self.close()
         except socket.error as e:
-            pass
+            print(e)
 
     def receive_messages(self):
         while True:
-            msg = self.receive_message()
-            if msg:
-                self.send_message(msg)
+            message = self.receive_message()
+            if message:
+                messages.append(message)
+                print(messages)
             else:
-                self.close()
                 break
-
 
 
 sock = Socket()
@@ -80,4 +123,7 @@ roomcode = sock.receive_message()
 
 print(roomcode)
 
-sock.send_message("hi")
+messages = []
+
+while True:
+    sock.receive_messages()
