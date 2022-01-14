@@ -24,7 +24,6 @@ can join rooms and send messages in them/connect to voice chat
  
 ### Message Example
 message_type : 0\
-user_or_room : 0\
 message_author : blocky\
 message_recipient: rozza\
 message: i like bob
