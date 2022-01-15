@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
 
+
 class Socket(socket.socket, threading.Thread):
     def __init__(self):
         socket.socket.__init__(self, socket.AF_INET, socket.SOCK_STREAM)
@@ -30,7 +31,7 @@ class Socket(socket.socket, threading.Thread):
         self.kdf = PBKDF2HMAC(
             algorithm=hashes.SHA512(),
             length=32,
-            salt=b'salt_',
+            salt=b'amougussexylovmao',
             iterations=100000,
             backend=default_backend()
         )
@@ -50,7 +51,6 @@ class Socket(socket.socket, threading.Thread):
         msg = self.f.decrypt(msg)
         return msg.decode('utf-8', 'ignore')
 
-
     def send_formatted_message(self, message_type, username, recipient, message):
         msg = f"{message_type}\n" \
               f"{username}\n" \
@@ -63,19 +63,16 @@ class Socket(socket.socket, threading.Thread):
         encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
 
-    def read_formatted_message(self, formatted_message):
-        formatted_message = formatted_message.splitlines()
+    def receive_formatted_message(self):
+        message = self.receive_message()
+        formatted_message = message.splitlines()
         message_headers = {
             "message_type": formatted_message[0],
             "message_author": formatted_message[1],
             "message_recipient": formatted_message[2]
         }
         message = "".join(formatted_message[3:])
-        if message.startswith("!"):
-            message = message[1:]
-        else:
-            message = f"{message_headers['message_author']}: {message}"
-        print(message_headers, message)
+        print(message)
         return message_headers, message
 
     def receive_message(self):
@@ -99,12 +96,49 @@ class Socket(socket.socket, threading.Thread):
 
     def receive_messages(self):
         while True:
-            message = self.receive_message()
+            message_headers, message = self.receive_formatted_message()
             if message:
-                messages.append(message)
-                print(messages)
+                process_message(message_headers, message)
             else:
                 break
+
+
+users = []
+
+
+def process_message(message_headers, message):
+    if message_headers["message_type"] == '0':
+        username = message_headers['message_author']
+        messages.append([message, username])
+        send_to_all(message, username)
+
+    elif message_headers["message_type"] == '1':
+        message = message.split()
+        if message[0] == "adduser":
+            add_user(message[1])
+
+
+def add_user(username):
+    users.append(username)
+    for message in messages:
+        sock.send_formatted_message(message_type='0', username=message[1], recipient=username, message=message[0])
+    message = f"!{username} has joined the room"
+    messages.append([message, username])
+    send_to_all(message, username)
+    sock.send_formatted_message(message_type='0', username=roomcode, recipient=username,
+                                message=f"!You have joined the room {roomcode}\n"
+                                        f"you can change to it by using !changeroom {roomcode}")
+
+    print(users)
+
+
+def send_to_all(message, username):
+    if message.startswith("!"):
+        message = message[1:]
+    else:
+        message = f"{username}: {message}"
+    for user in users:
+        sock.send_formatted_message(message_type='0', username=username, recipient=user, message=message)
 
 
 sock = Socket()
@@ -125,5 +159,4 @@ print(roomcode)
 
 messages = []
 
-while True:
-    sock.receive_messages()
+sock.receive_messages()

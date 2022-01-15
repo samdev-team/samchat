@@ -25,6 +25,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
 import time
+import samsocket
+
 
 ip = "rozzanet.ddns.net"
 port = 25469
@@ -90,6 +92,7 @@ class StartMenu(ttk.Frame):
 
         if exists:
             username_label.configure(text="Username already exists\nEnter a username")
+            self.parent.bind("<Return>", self.send_user_data)
 
         username_label.grid(column=1, row=1, pady=15)
         self.username_input.grid(column=1, row=2)
@@ -180,20 +183,25 @@ class ChatRoom(ttk.Frame):
         self.parent.bind("<Configure>", self.on_resize)
 
     def add_samroom(self, roomcode):
-        self.samrooms[roomcode] = []
-        self.current_samroom = roomcode
+        self.samrooms[roomcode] = [f"Beginning of samroom {roomcode}"]
 
     def change_samroom(self, roomcode):
-        if not self.samrooms.get(roomcode):
-            pass
+        if not self.samrooms[roomcode]:
+            print(self.samrooms)
+            self.add_message("\nYou arnt in that samroom silly\n")
+        else:
+            self.current_samroom = roomcode
+            self.text.configure(state=NORMAL)
+            self.text.delete('1.0', END)
+            for i in range(100):
+                self.text.insert(END, "\n")
+            self.text.configure(state=DISABLED)
+            self.text.yview_moveto(1)
 
-        self.text.configure(state=NORMAL)
-        self.text.delete('1.0', END)
-        self.text.configure(state=DISABLED)
-        self.text.yview_moveto(1)
-
-        for message in self.samrooms.get(roomcode):
-            self.add_message(message)
+            self.message_entry.configure(state=DISABLED)
+            for message in self.samrooms.get(roomcode):
+                self.add_message(message)
+            self.message_entry.configure(state=NORMAL)
 
     def add_room_message(self, message_headers, message):
         self.samrooms[message_headers["message_recipient"]].append(message)
@@ -306,7 +314,7 @@ class Socket(socket.socket, threading.Thread):
         self.kdf = PBKDF2HMAC(
             algorithm=hashes.SHA512(),
             length=32,
-            salt=b'salt_',
+            salt=b'amougussexylovmao',
             iterations=100000,
             backend=default_backend()
         )
@@ -341,7 +349,7 @@ class Socket(socket.socket, threading.Thread):
                                             message=f"joinroom {message[1]}")
                 self.parent._chat_room.add_samroom(message[1])
             else:
-                print(f"Too many arguments, expected 1 got {len(message)}")
+                self.parent._chat_room.add_message(f"\nToo many arguments, expected 1, got {len(message[1:])}\n")
 
         if message[0] == "changeroom":
             if len(message[1:]) == 1:
@@ -361,18 +369,15 @@ class Socket(socket.socket, threading.Thread):
         encoded_message = len(msg).to_bytes(4, "little") + msg
         self.send(encoded_message)
 
-    def read_formatted_message(self, formatted_message):
-        formatted_message = formatted_message.splitlines()
+    def receive_formatted_message(self):
+        message = self.receive_message()
+        formatted_message = message.splitlines()
         message_headers = {
             "message_type": formatted_message[0],
             "message_author": formatted_message[1],
             "message_recipient": formatted_message[2]
         }
-        message = "".join(formatted_message[3:])
-        if message.startswith("!"):
-            message = message[1:]
-        else:
-            message = f"{message_headers['message_author']}: {message}"
+        message = "\n".join(formatted_message[3:])
         print(message_headers, message)
         return message_headers, message
 
@@ -397,9 +402,11 @@ class Socket(socket.socket, threading.Thread):
 
     def receive_messages(self):
         while True:
-            formatted_message = self.receive_message()
-            if formatted_message:
-                message_headers, message = self.read_formatted_message(formatted_message)
+            try:
+                message_headers, message = self.receive_formatted_message()
+            except:
+                break
+            if message:
                 if message_headers["message_recipient"] == self.username:
                     self.parent._chat_room.add_message(f"{message}")
                 else:

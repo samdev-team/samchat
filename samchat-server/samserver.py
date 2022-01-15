@@ -50,9 +50,12 @@ class Room(Client):
 
     def receive_messages(self):
         while server_running:
-            msg = receive_message(self.client, self.ip_address)
-            if msg:
-                pass
+            try:
+                message_headers, message = read_formatted_message(receive_message(self.client, self.ip_address))
+            except:
+                break
+            if message:
+                process_message(message_headers, message, self)
             else:
                 break
         self.remove()
@@ -82,6 +85,10 @@ class User(Client):
         self.client.close()
         del users[self.username]
         message = f"!{self.username} has left the chat"
+        if message.startswith("!"):
+            message = message[1:]
+        else:
+            message = f"{self.username}: {message}"
         send_to_all(create_formatted_message(message_type='0', message_author=self.username, message_recipient="server",
                                              message=message), message, self)
 
@@ -108,7 +115,7 @@ password = password_provided.encode("utf-8")
 kdf = PBKDF2HMAC(
     algorithm=hashes.SHA512(),
     length=32,
-    salt=b'salt_',
+    salt=b'amougussexylovmao',
     iterations=100000,
     backend=default_backend()
 )
@@ -118,14 +125,14 @@ f = Fernet(key)
 root.debug(f"Using {password_provided} as the password for the encryption")
 
 
-def read_formatted_message(message, username):
+def read_formatted_message(message, username=None):
     message = message.splitlines()
     message_headers = {
         "message_type": message[0],
         "message_author": message[1],
         "message_recipient": message[2],
     }
-    message = ("\n" + " " * len(username) + "  ").join(message[3:])
+    message = "\n".join(message[3:])
     return message_headers, message
 
 
@@ -137,38 +144,64 @@ def create_formatted_message(message_type, message_author, message_recipient, me
     return message
 
 
-def process_message(message_headers, message, user: User):
+def process_message(message_headers, message, room_user):
     if message_headers["message_type"] == '0':
-        if message_headers['message_recipient'] == "server":
-            send_to_all(create_formatted_message(message_type='0', message_author=message_headers['message_author'],
-                                                 message_recipient="server", message=message), message, user)
-        else:
-            if message_headers["message_recipient"] in rooms.keys():
-                room = rooms[message_headers["message_recipient"]]
-                send_message(message, room.client)
-
+        if isinstance(room_user, User):
+            user = room_user
+            if message_headers['message_recipient'] == "server":
+                if message.startswith("!"):
+                    message = message[1:]
+                else:
+                    message = f"{user.username}: {message}"
+                send_to_all(create_formatted_message(
+                    message_type='0', message_author=message_headers['message_author'],
+                    message_recipient="server", message=message), message, user)
+            else:
+                if message_headers["message_recipient"] in rooms.keys():
+                    room = rooms[message_headers["message_recipient"]]
+                    send_message(create_formatted_message(
+                        message_type='0', message_author=user.username,
+                        message_recipient=None, message=message), room.client)
+        elif isinstance(room_user, Room):
+            room = room_user
+            username = message_headers["message_recipient"]
+            user = users.get(username)
+            if room.roomcode == message_headers["message_author"]:
+                if message.startswith("!"):
+                    message = message[1:]
+                else:
+                    message = f"{user.username}: {message}"
+                send_message(create_formatted_message(
+                    message_type='0', message_author=room.roomcode,
+                    message_recipient=username, message=message), user.client)
+            else:
+                send_message(create_formatted_message(
+                    message_type='0', message_author=message_headers["message_author"],
+                    message_recipient=room.roomcode, message=message),
+                    user.client)
 
     elif message_headers["message_type"] == '1':
-        print("this is a api message")
-        process_api_message(message, user)
+        print("this is a action message")
+        message = message.split()
 
-
-def process_api_message(message, user: User):
-    message = message.split()
-
-    if message[0] == "joinroom":
-        if not message[1] == "server":
-            if message[1] in rooms.keys():
-                root.debug(f"({user.ip_address}) {user.username} is joining room {message[1]} "
-                           f"({rooms[message[1]].roomname})")
+        if message[0] == "joinroom":
+            user = room_user
+            if not message[1] == "server":
+                if message[1] in rooms.keys():
+                    room = rooms[message[1]]
+                    root.debug(f"({user.ip_address}) {user.username} is joining room {message[1]} ({room.roomname})")
+                    send_message(
+                        create_formatted_message(message_type="1", message_author="server", message_recipient=None,
+                                                 message=f"adduser {user.username}"), room.client)
+                else:
+                    send_message(create_formatted_message(
+                        message_type="0", message_author="server",
+                        message_recipient=user.username,
+                        message=f"""The room "{message[1]}" doesn't exist"""), user.client)
             else:
                 send_message(create_formatted_message(message_type="0", message_author="server",
                                                       message_recipient=user.username,
-                                                      message=f"""The room "{message[1]}" doesn't exist"""), user.client)
-        else:
-            send_message(create_formatted_message(message_type="0", message_author="server",
-                                                  message_recipient=user.username,
-                                                  message="You cant join the server room"), user.client)
+                                                      message="You cant join the server room"), user.client)
 
 
 def generate_room_code():
@@ -218,7 +251,7 @@ def send_message(msg, client: socket.socket):
 
 
 def send_to_all(formatted_message, message, user: User):
-    messages.insert(0, [user, message])
+    messages.insert(0, [user.username, message])
     if message.startswith("!"):
         message = message[1:]
     else:
@@ -235,7 +268,7 @@ def send_previous_messages(user: User):
         messages_to_send.insert(0, [message[0], message[1]])
 
     for message in messages_to_send:
-        send_message(create_formatted_message(message_type='0', message_author=message[0].username,
+        send_message(create_formatted_message(message_type='0', message_author=message[0],
                                               message_recipient="server", message=message[1]), user.client)
 
 
@@ -263,6 +296,7 @@ def add_client(client: socket.socket, address):
     elif client_version == version:
         send_message("version_good", user.client)
         root.debug("Client version matches server version")
+
         root.debug(f"({user.ip_address}) Waiting for username to be sent")
         username = get_username(user)
         if username:
@@ -274,6 +308,11 @@ def add_client(client: socket.socket, address):
             users[username] = user
             root.debug(f"({user.ip_address}) Added user to current connections")
             message = f"!{username} has connected to the chat"
+            # send a welcome message to the server room
+            if message.startswith("!"):
+                message = message[1:]
+            else:
+                message = f"{user.username}: {message}"
             send_to_all(
                 create_formatted_message(message_type='0', message_author=user.username, message_recipient="server",
                                          message=message), message, user)

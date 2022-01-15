@@ -8,16 +8,10 @@ can join rooms and send messages in them/connect to voice chat
 
 #### bot(potentially)
 
-### User/Room Send Message Dissection
- - message type - string (0 = msg, 1 = api, 2 = voice, 3 = video)
- - message author - string
- - message recipient - string
- - message - string
-
-### Server Send Message Dissection
+### Message Dissection
  - **Header**
    - message type - string (0 = msg, 1 = action, 2 = voice, 3 = video)
-   - message author - string
+   - message author - string 
    - message recipient - string
  - **Body**
    - message - string
