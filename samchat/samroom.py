@@ -145,7 +145,7 @@ sock = Socket()
 
 sock.create_encryption()
 
-sock.connect(("127.0.0.1", 25469))
+sock.connect(("rozzanet.ddns.net", 25469))
 
 sock.send_message("room")
 

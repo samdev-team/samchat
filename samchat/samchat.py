@@ -13,24 +13,32 @@
 
 import socket
 import threading
-import tkinter
 from tkinter import *
 from tkinter import ttk
 import sys
-import cryptography.exceptions
-from cryptography.fernet import Fernet
-import base64
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import os
-import time
-import samsocket
+from utilities.samsocket import message, samsocket, Encryption
+import utilities.exceptions
+import pyaudio
 
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 2
+RATE = 44100
+RECORD_SECONDS = 1
+
+p = pyaudio.PyAudio()
+
+stream = p.open(format=FORMAT,
+                channels=CHANNELS,
+                rate=RATE,
+                input=True,
+                # output=True,
+                frames_per_buffer=CHUNK)
 
 ip = "rozzanet.ddns.net"
 port = 25469
-version = "5"
+version = "6"
 
 if "dev" in sys.argv:
     print("Starting in dev mode")
@@ -41,7 +49,6 @@ class StartMenu(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
         self.parent = parent
-        self.sock = Socket(self.parent)
         self.parent.style.configure('one.TFrame', background=self.parent.background_colour)
         self.configure(style="one.TFrame")
         self.username = None
@@ -79,7 +86,8 @@ class StartMenu(ttk.Frame):
 
     def connect(self):
         try:
-            self.sock.connect((ip, port))
+            self.parent.sock = samsocket.create_socket()
+            self.parent.sock.connect((ip, port))
             self.user_creation()
         except socket.error:
             self.connecting_label.configure(text="Failed to connected (ip doxxed)\ntry again later", justify=CENTER)
@@ -88,36 +96,48 @@ class StartMenu(ttk.Frame):
         self.clear_window()
         self.parent.unbind("<Return>")
         self.grid_rowconfigure(2, weight=0)
-        username_label = ttk.Label(self, text="Enter a username", style="three.TLabel", justify=CENTER)
+        username_label = ttk.Label(self, text="Zam is zexy", style="three.TLabel", justify=CENTER)
 
         if exists:
             username_label.configure(text="Username already exists\nEnter a username")
             self.parent.bind("<Return>", self.send_user_data)
 
         username_label.grid(column=1, row=1, pady=15)
-        self.username_input.grid(column=1, row=2)
         if not os.path.isfile("sam.password"):
             username_label.configure(text="Enter the password")
+            self.username_input.grid(column=1, row=2)
             self.parent.bind("<Return>", self.set_password)
         else:
             if not exists:
-                self.sock.create_encryption()
-                self.sock.send_message("user")
-
-                self.sock.send_message(version)
-                confirmation = self.sock.receive_message()
-                if confirmation == "old_version_client":
-                    username_label.configure(text="You are running an older version of SAM-Chat\n"
-                                                  "Please download the latest version at\n"
-                                                  "github.com/blockbuster-exe/SAM-Chat")
-                    self.username_input.grid_forget()
-                elif confirmation == "old_version_server":
-                    username_label.configure(text="The server is running an older version\n"
-                                                  "of SAM-Chat. Please wait until the \n"
-                                                  "server maintainers update \nthe server to the latest version")
-                    self.username_input.grid_forget()
-                elif confirmation == "version_good":
-                    self.parent.bind("<Return>", self.send_user_data)
+                with open("sam.password", 'r') as file:
+                    self.parent.encryption = Encryption(file.read().encode("utf-8", errors="ignore"))
+                samsocket.send_message(self.parent.sock, self.parent.encryption, "user")
+                samsocket.send_message(self.parent.sock, self.parent.encryption, version)
+                try:
+                    confirmation = samsocket.receive_message(self.parent.sock,
+                                                             self.parent.encryption).decode("utf-8", errors="ignore")
+                    if confirmation == "old_version_client":
+                        username_label.configure(text="You are running an older version of SAM-Chat\n"
+                                                      "Please download the latest version at\n"
+                                                      "github.com/blockbuster-exe/SAM-Chat")
+                        self.parent.sock.close()
+                    elif confirmation == "old_version_server":
+                        username_label.configure(text="The server is running an older version\n"
+                                                      "of SAM-Chat. Please wait until the\n"
+                                                      "server maintainers update\n"
+                                                      "the server to the latest version")
+                        self.parent.sock.close()
+                    elif confirmation == "version_good":
+                        username_label.configure(text="Enter a username")
+                        self.username_input.grid(column=1, row=2)
+                        self.parent.bind("<Return>", self.send_user_data)
+                except utilities.exceptions.StreamTerminated:
+                    username_label.configure(text=f"Either the server went offline or\n"
+                                                  f"you have used the wrong password when \n"
+                                                  f"connecting to the server ({ip}).\n\n"
+                                                  f" it is highly likely that the password you\n"
+                                                  f"entered is wrong please check again with the \n"
+                                                  f"server owner")
 
     def set_password(self, event):
         password = self.username_input.get()
@@ -130,12 +150,12 @@ class StartMenu(ttk.Frame):
         if not self.username == "":
             self.parent.unbind("<Return>")
             self.username = self.username.replace(" ", "_")
-            self.sock.send_message(self.username)
-            status = self.sock.receive_message()
+            samsocket.send_message(self.parent.sock, self.parent.encryption, self.username)
+            status = samsocket.receive_message(self.parent.sock, self.parent.encryption)
             if status == "username_exists":
                 self.user_creation(True)
             else:
-                self.parent.chat_room(self.sock)
+                self.parent.chat_room()
 
     def clear_window(self):
         _list = self.winfo_children()
@@ -204,8 +224,8 @@ class ChatRoom(ttk.Frame):
             self.message_entry.configure(state=NORMAL)
 
     def add_room_message(self, message_headers, message):
-        self.samrooms[message_headers["message_recipient"]].append(message)
-        if message_headers["message_recipient"] == self.current_samroom:
+        self.samrooms[message_headers["recipient"]].append(message)
+        if message_headers["recipient"] == self.current_samroom:
             self.add_message(message)
 
     def add_message(self, message):
@@ -221,7 +241,9 @@ class ChatRoom(ttk.Frame):
         if msg.startswith("!"):
             self.parent.sock.process_command(msg)
         elif not msg == "":
-            self.parent.sock.send_formatted_message('0', self.username, self.current_samroom, msg)
+            samsocket.send_message(self.parent.sock, self.parent.encryption,
+                                   message.create_formatted_message('0', self.username, self.current_samroom,
+                                                                    msg.encode()).decode("utf-8", errors="ignore"))
             # self.add_message(f"{self.username}: {msg}")
 
     def on_resize(self, event):
@@ -248,6 +270,7 @@ class Application(Tk):
     def __init__(self):
         Tk.__init__(self)
         self.sock = None
+        self.encryption = None
         self.background_colour = "#2d2d2d"
         self.title("SAM-Chat")
         self.geometry("900x600")
@@ -292,132 +315,49 @@ class Application(Tk):
         self._start_menu.grid(column=1, row=1, sticky="nsew")
         self._start_menu.create_start_menu()
 
-    def chat_room(self, sock):
+    def chat_room(self):
         self.clear_window()
         self.username_label.configure(text=f"You are logged in as")
         self.username_label1.configure(text=self._start_menu.username)
-        self.sock = sock
-        sock.username = self._start_menu.username
         self._chat_room.username = self._start_menu.username
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
-        sock.start()
+        threading.Thread(target=receive_messages, daemon=True).start()
+        threading.Thread(target=send_audio_data, daemon=True).start()
 
 
-class Socket(socket.socket, threading.Thread):
-    def __init__(self, parent):
-        socket.socket.__init__(self, socket.AF_INET, socket.SOCK_STREAM)
-        threading.Thread.__init__(self, target=self.receive_messages, daemon=True)
-        self.parent = parent
-        self.username = None
-        # encryption
-        self.kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA512(),
-            length=32,
-            salt=b'amougussexylovmao',
-            iterations=100000,
-            backend=default_backend()
-        )
+def send_audio_data():
+    pass
 
-    def create_encryption(self):
-        password_provided = open("sam.password", 'r').read()
-        password = password_provided.encode("utf-8")
-        key = base64.urlsafe_b64encode(self.kdf.derive(password))
-        self.f = Fernet(key)
 
-    def encrypt(self, msg):
-        msg = msg.encode("utf-8", "ignore")
-        msg = self.f.encrypt(msg)
-        return msg
-
-    def decrypt(self, msg):
-        msg = self.f.decrypt(msg)
-        return msg.decode('utf-8', 'ignore')
-
-    def process_command(self, message):
-        message = message[1:].split()
-        if message[0] == "fetch":
-            if len(message[1:]) == 1:
-                self.send_formatted_message(message_type="1", username=self.username, recipient="server",
-                                            message=f"fetch {message[1]}")
-            else:
-                print(f"Too many arguments, expected 1 got {len(message)}")
-
-        if message[0] == "addroom":
-            if len(message[1:]) == 1:
-                self.send_formatted_message(message_type="1", username=self.username, recipient="server",
-                                            message=f"joinroom {message[1]}")
-                self.parent._chat_room.add_samroom(message[1])
-            else:
-                self.parent._chat_room.add_message(f"\nToo many arguments, expected 1, got {len(message[1:])}\n")
-
-        if message[0] == "changeroom":
-            if len(message[1:]) == 1:
-                self.parent._chat_room.change_samroom(message[1])
-            else:
-                print(f"Too many arguments, expected 1 got {len(message)}")
-
-    def send_formatted_message(self, message_type, username, recipient, message):
-        msg = f"{message_type}\n" \
-              f"{username}\n" \
-              f"{recipient}\n" \
-              f"{message}"
-        self.send_message(msg)
-
-    def send_message(self, msg: str):
-        msg = self.encrypt(msg)
-        encoded_message = len(msg).to_bytes(4, "little") + msg
-        self.send(encoded_message)
-
-    def receive_formatted_message(self):
-        message = self.receive_message()
-        formatted_message = message.splitlines()
-        message_headers = {
-            "message_type": formatted_message[0],
-            "message_author": formatted_message[1],
-            "message_recipient": formatted_message[2]
-        }
-        message = "\n".join(formatted_message[3:])
-        print(message_headers, message)
-        return message_headers, message
-
-    def receive_message(self):
+def receive_messages():
+    while True:
         try:
-            bufflen = int.from_bytes(self.recv(4), "little")
-            data = b''
-            while True:
-                data_part = self.recv(bufflen)
-                data += data_part
-                if len(data_part) == bufflen:
-                    break
-                else:
-                    bufflen -= len(data_part)
-            if data:
-                data = self.decrypt(data)
-                return data
-            else:
-                self.close()
-        except socket.error as e:
-            print(e)
-
-    def receive_messages(self):
-        while True:
-            try:
-                message_headers, message = self.receive_formatted_message()
-            except:
-                break
+            formatted_msg = message.read_formatted_message(samsocket.receive_message(app.sock, app.encryption))
             if message:
-                if message_headers["message_recipient"] == self.username:
-                    self.parent._chat_room.add_message(f"{message}")
+                if formatted_msg[0]["recipient"] == app._start_menu.username:
+                    app._chat_room.add_message(f"{message}")
                 else:
-                    self.parent._chat_room.add_room_message(message_headers, message)
+                    print(formatted_msg[0])
+                    if formatted_msg[0]["type"] == "2":
+                        pass
+                    else:
+                        print(formatted_msg)
+                        app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
             else:
                 break
-        self.parent.clear_window()
-        ttk.Label(text="Lost connection with the server\nServer is probably down by "
-                       "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)
-        self.parent.username_label.place_forget()
-        self.parent.username_label1.place_forget()
+        except utilities.exceptions.StreamTerminated:
+            break
+        except utilities.exceptions.EncryptionFailed:
+            print("You must have the wrong key dude or thewre is a new bug :DEATH:")
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+    app.clear_window()
+    ttk.Label(app, text="Lost connection with the server\nServer is probably down by "
+                        "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)
+    app.username_label.place_forget()
+    app.username_label1.place_forget()
 
 
 app = Application()

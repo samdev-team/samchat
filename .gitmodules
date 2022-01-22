@@ -1,0 +1,3 @@
+[submodule "pyaudio"]
+	path = pyaudio
+	url = https://git.skeh.site/skeh/pyaudio.git
