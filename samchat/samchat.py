@@ -338,11 +338,9 @@ def receive_messages():
                 if formatted_msg[0]["recipient"] == app._start_menu.username:
                     app._chat_room.add_message(f"{message}")
                 else:
-                    print(formatted_msg[0])
                     if formatted_msg[0]["type"] == "2":
                         pass
                     else:
-                        print(formatted_msg)
                         app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
             else:
                 break
@@ -350,9 +348,9 @@ def receive_messages():
             break
         except utilities.exceptions.EncryptionFailed:
             print("You must have the wrong key dude or thewre is a new bug :DEATH:")
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+    # stream.stop_stream()
+    # stream.close()
+    # p.terminate()
     app.clear_window()
     ttk.Label(app, text="Lost connection with the server\nServer is probably down by "
                         "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)

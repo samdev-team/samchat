@@ -325,9 +325,9 @@ def connection_listener():
         except utilities.exceptions.EncryptionFailed:
             print()
         except KeyboardInterrupt:
-            stream.stop_stream()
-            stream.close()
-            p.terminate()
+            # stream.stop_stream()
+            # stream.close()
+            # p.terminate()
             root.info("Server shutting down")
             root.debug("Closing all connections with users")
             for user in users.values():
