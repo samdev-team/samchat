@@ -27,20 +27,20 @@ import os
 from utilities.samsocket import samsocket, message, Encryption
 import utilities.exceptions
 
-import pyaudio
-
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-
-p = pyaudio.PyAudio()
-
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                output=True,
-                frames_per_buffer=CHUNK)
+# import pyaudio
+#
+# CHUNK = 1024
+# FORMAT = pyaudio.paInt16
+# CHANNELS = 2
+# RATE = 44100
+#
+# p = pyaudio.PyAudio()
+#
+# stream = p.open(format=FORMAT,
+#                 channels=CHANNELS,
+#                 rate=RATE,
+#                 output=True,
+#                 frames_per_buffer=CHUNK)
 
 # logging setup
 root = logging.getLogger("SAM-Server")

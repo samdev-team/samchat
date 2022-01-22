@@ -19,22 +19,22 @@ import sys
 import os
 from utilities.samsocket import message, samsocket, Encryption
 import utilities.exceptions
-import pyaudio
+# import pyaudio
 
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-RECORD_SECONDS = 1
-
-p = pyaudio.PyAudio()
-
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                # output=True,
-                frames_per_buffer=CHUNK)
+# CHUNK = 1024
+# FORMAT = pyaudio.paInt16
+# CHANNELS = 2
+# RATE = 44100
+# RECORD_SECONDS = 1
+#
+# p = pyaudio.PyAudio()
+#
+# stream = p.open(format=FORMAT,
+#                 channels=CHANNELS,
+#                 rate=RATE,
+#                 input=True,
+#                 # output=True,
+#                 frames_per_buffer=CHUNK)
 
 ip = "rozzanet.ddns.net"
 port = 25469
