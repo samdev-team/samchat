@@ -15,32 +15,11 @@ import threading
 import logging
 import sys
 import random
-
-import cryptography.exceptions
-from cryptography.fernet import Fernet
-import base64
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import time
 import os
 
 from utilities.samsocket import samsocket, message, Encryption
 import utilities.exceptions
-
-# import pyaudio
-#
-# CHUNK = 1024
-# FORMAT = pyaudio.paInt16
-# CHANNELS = 2
-# RATE = 44100
-#
-# p = pyaudio.PyAudio()
-#
-# stream = p.open(format=FORMAT,
-#                 channels=CHANNELS,
-#                 rate=RATE,
-#                 output=True,
-#                 frames_per_buffer=CHUNK)
 
 # logging setup
 root = logging.getLogger("SAM-Server")
@@ -111,8 +90,12 @@ class User(Client):
         else:
             msg = f"{self.username}: {msg}"
         messages.insert(0, [self.username, msg])
-        send_to_all(message.create_formatted_message('0', self.username, "server",
-                                                     msg.encode("utf-8", errors="ignore")), msg, self)
+        send_to_all(message.create_formatted_message(
+            '0', self.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8",
+                                                                                       errors="ignore"), msg, self)
+
+
+
 
 
 port = 25469
@@ -150,7 +133,9 @@ def process_message(formatted_msg, room_user):
                     msg = f"{user.username}: {formatted_msg[1]}"
                 messages.insert(0, [user.username, msg])
                 send_to_all(message.create_formatted_message(
-                    '0', user.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8", errors="ignore"), msg, user)
+                    '0', user.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8",
+                                                                                               errors="ignore"), msg,
+                            user)
     #         else:
     #             if message_headers["message_recipient"] in rooms.keys():
     #                 room = rooms[message_headers["message_recipient"]]
@@ -194,10 +179,8 @@ def process_message(formatted_msg, room_user):
     #             send_message(create_formatted_message(message_type="0", message_author="server",
     #                                                   message_recipient=user.username,
     #                                                   message="You cant join the server room"), user.client)
-    # elif message_headers["message_type"] == '2':
-    #     pass
-    #     # stream.write(message)
-    #     send_to_all(create_formatted_message('2', room_user.username, "server", msg), "Voice data", room_user)
+    elif formatted_msg[0]["type"] == '2':
+        pass
 
 
 def generate_room_code():
@@ -214,8 +197,12 @@ def send_to_all(formatted_message: str, msg: str, user: User):
         samsocket.send_message(user.client, encryption, formatted_message)
 
 
-def send_voice_to_all(formatted_message: bytes, user: User):
-    pass
+def send_voice_to_all(formatted_message: bytes):
+    for user in users.values():
+        try:
+            samsocket.send_data(user.client, encryption, formatted_message)
+        except socket.error:
+            pass
 
 
 def send_previous_messages(user: User):
@@ -225,7 +212,6 @@ def send_previous_messages(user: User):
         messages_to_send.insert(0, [msg[0], msg[1]])
 
     for msg in messages_to_send:
-        print(msg)
         samsocket.send_message(user.client, encryption, message.create_formatted_message(
             '0', msg[0], "server", msg[1].encode("utf-8", errors="ignore")).decode("utf-8", errors="ignore"))
 
@@ -322,12 +308,7 @@ def connection_listener():
                     threading.Thread(target=lambda: add_room(conn, addr), daemon=True).start()
                 else:
                     root.error(f"({addr[0]}) Incorrect connection type")
-        except utilities.exceptions.EncryptionFailed:
-            print()
         except KeyboardInterrupt:
-            # stream.stop_stream()
-            # stream.close()
-            # p.terminate()
             root.info("Server shutting down")
             root.debug("Closing all connections with users")
             for user in users.values():

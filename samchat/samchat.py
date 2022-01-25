@@ -17,24 +17,32 @@ from tkinter import *
 from tkinter import ttk
 import sys
 import os
+
 from utilities.samsocket import message, samsocket, Encryption
 import utilities.exceptions
-# import pyaudio
+import pyaudio
 
-# CHUNK = 1024
-# FORMAT = pyaudio.paInt16
-# CHANNELS = 2
-# RATE = 44100
-# RECORD_SECONDS = 1
-#
-# p = pyaudio.PyAudio()
-#
-# stream = p.open(format=FORMAT,
-#                 channels=CHANNELS,
-#                 rate=RATE,
-#                 input=True,
-#                 # output=True,
-#                 frames_per_buffer=CHUNK)
+import time
+
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 2
+RATE = 44100
+RECORD_TIME = 1
+
+p = pyaudio.PyAudio()
+
+stream = p.open(format=FORMAT,
+                channels=CHANNELS,
+                rate=RATE,
+                input=True,
+                frames_per_buffer=CHUNK)
+
+stream1 = p.open(format=FORMAT,
+                 channels=CHANNELS,
+                 rate=RATE,
+                 output=True,
+                 frames_per_buffer=CHUNK)
 
 ip = "rozzanet.ddns.net"
 port = 25469
@@ -43,6 +51,9 @@ version = "6"
 if "dev" in sys.argv:
     print("Starting in dev mode")
     ip = "127.0.0.1"
+
+
+def VoiceChat
 
 
 class StartMenu(ttk.Frame):
@@ -101,43 +112,46 @@ class StartMenu(ttk.Frame):
         if exists:
             username_label.configure(text="Username already exists\nEnter a username")
             self.parent.bind("<Return>", self.send_user_data)
-
-        username_label.grid(column=1, row=1, pady=15)
-        if not os.path.isfile("sam.password"):
-            username_label.configure(text="Enter the password")
             self.username_input.grid(column=1, row=2)
-            self.parent.bind("<Return>", self.set_password)
+            username_label.grid(column=1, row=1, pady=15)
         else:
-            if not exists:
-                with open("sam.password", 'r') as file:
-                    self.parent.encryption = Encryption(file.read().encode("utf-8", errors="ignore"))
-                samsocket.send_message(self.parent.sock, self.parent.encryption, "user")
-                samsocket.send_message(self.parent.sock, self.parent.encryption, version)
-                try:
-                    confirmation = samsocket.receive_message(self.parent.sock,
-                                                             self.parent.encryption).decode("utf-8", errors="ignore")
-                    if confirmation == "old_version_client":
-                        username_label.configure(text="You are running an older version of SAM-Chat\n"
-                                                      "Please download the latest version at\n"
-                                                      "github.com/blockbuster-exe/SAM-Chat")
-                        self.parent.sock.close()
-                    elif confirmation == "old_version_server":
-                        username_label.configure(text="The server is running an older version\n"
-                                                      "of SAM-Chat. Please wait until the\n"
-                                                      "server maintainers update\n"
-                                                      "the server to the latest version")
-                        self.parent.sock.close()
-                    elif confirmation == "version_good":
-                        username_label.configure(text="Enter a username")
-                        self.username_input.grid(column=1, row=2)
-                        self.parent.bind("<Return>", self.send_user_data)
-                except utilities.exceptions.StreamTerminated:
-                    username_label.configure(text=f"Either the server went offline or\n"
-                                                  f"you have used the wrong password when \n"
-                                                  f"connecting to the server ({ip}).\n\n"
-                                                  f" it is highly likely that the password you\n"
-                                                  f"entered is wrong please check again with the \n"
-                                                  f"server owner")
+            username_label.grid(column=1, row=1, pady=15)
+            if not os.path.isfile("sam.password"):
+                username_label.configure(text="Enter the password")
+                self.username_input.grid(column=1, row=2)
+                self.parent.bind("<Return>", self.set_password)
+            else:
+                if not exists:
+                    with open("sam.password", 'r') as file:
+                        self.parent.encryption = Encryption(file.read().encode("utf-8", errors="ignore"))
+                    samsocket.send_message(self.parent.sock, self.parent.encryption, "user")
+                    samsocket.send_message(self.parent.sock, self.parent.encryption, version)
+                    try:
+                        confirmation = samsocket.receive_message(self.parent.sock,
+                                                                 self.parent.encryption).decode("utf-8",
+                                                                                                errors="ignore")
+                        if confirmation == "old_version_client":
+                            username_label.configure(text="You are running an older version of SAM-Chat\n"
+                                                          "Please download the latest version at\n"
+                                                          "github.com/blockbuster-exe/SAM-Chat")
+                            self.parent.sock.close()
+                        elif confirmation == "old_version_server":
+                            username_label.configure(text="The server is running an older version\n"
+                                                          "of SAM-Chat. Please wait until the\n"
+                                                          "server maintainers update\n"
+                                                          "the server to the latest version")
+                            self.parent.sock.close()
+                        elif confirmation == "version_good":
+                            username_label.configure(text="Enter a username")
+                            self.username_input.grid(column=1, row=2)
+                            self.parent.bind("<Return>", self.send_user_data)
+                    except utilities.exceptions.StreamTerminated:
+                        username_label.configure(text=f"Either the server went offline or\n"
+                                                      f"you have used the wrong password when \n"
+                                                      f"connecting to the server ({ip}).\n\n"
+                                                      f" it is highly likely that the password you\n"
+                                                      f"entered is wrong please check again with the \n"
+                                                      f"server owner")
 
     def set_password(self, event):
         password = self.username_input.get()
@@ -151,7 +165,8 @@ class StartMenu(ttk.Frame):
             self.parent.unbind("<Return>")
             self.username = self.username.replace(" ", "_")
             samsocket.send_message(self.parent.sock, self.parent.encryption, self.username)
-            status = samsocket.receive_message(self.parent.sock, self.parent.encryption)
+            status = samsocket.receive_message(self.parent.sock, self.parent.encryption).decode("utf-8",
+                                                                                                errors="ignore")
             if status == "username_exists":
                 self.user_creation(True)
             else:
@@ -327,7 +342,13 @@ class Application(Tk):
 
 
 def send_audio_data():
-    pass
+    while True:
+        data = stream.read(CHUNK)
+        try:
+            samsocket.send_data(app.sock, app.encryption,
+                                message.create_formatted_message('2', app._start_menu.username, 'server', data))
+        except utilities.exceptions.StreamTerminated:
+            pass
 
 
 def receive_messages():
@@ -339,7 +360,7 @@ def receive_messages():
                     app._chat_room.add_message(f"{message}")
                 else:
                     if formatted_msg[0]["type"] == "2":
-                        pass
+                        stream1.write(formatted_msg[1])
                     else:
                         app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
             else:
@@ -348,9 +369,11 @@ def receive_messages():
             break
         except utilities.exceptions.EncryptionFailed:
             print("You must have the wrong key dude or thewre is a new bug :DEATH:")
-    # stream.stop_stream()
-    # stream.close()
-    # p.terminate()
+    stream.stop_stream()
+    stream.close()
+    stream1.stop_stream()
+    stream1.close()
+    p.terminate()
     app.clear_window()
     ttk.Label(app, text="Lost connection with the server\nServer is probably down by "
                         "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)

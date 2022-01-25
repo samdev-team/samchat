@@ -31,13 +31,13 @@ class message:
             "author": formatted_msg[1].decode("utf-8", errors="ignore"),
             "recipient": formatted_msg[2].decode("utf-8", errors="ignore")
         }
-        if msg_headers["type"] == "0" or "1":
+        if msg_headers["type"] in ["0", "1"]:
             messages = []
             for msg in formatted_msg[3:]:
                 messages.append(msg.decode("utf-8", errors="ignore"))
             msg = "\n".join(messages)
-        elif msg_headers["type"] == "2" or "3" or "4":
-            msg = formatted_msg[3:]
+        elif msg_headers["type"] in ['2', '3', '4']:
+            msg = b''.join(formatted_msg[3:])
         return [msg_headers, msg]
 
     @staticmethod
@@ -83,7 +83,10 @@ class samsocket:
             print("SAM-Chat does not allow messages to be sent without encryption")
         else:
             data = encryption.encrypt_message(data)
-            sock.send(len(data).to_bytes(4, "little") + data)
+            try:
+                sock.send(len(data).to_bytes(4, "little") + data)
+            except BrokenPipeError:
+                raise utilities.exceptions.StreamTerminated("Socket stream has been terminated")
 
     @staticmethod
     def receive_message(sock: socket.socket, encryption: Encryption, ip_address=None, logger=None):
@@ -109,10 +112,10 @@ class samsocket:
                     logger.debug(f"({ip_address}) Failed to decrypt message")
                     return None
                 else:
-                    raise utilities.exceptions.EncryptionFailed(f"({ip_address}) Failed to decrypt message")
+                    raise utilities.exceptions.EncryptionFailed("Failed to decrypt message")
         except socket.error or ConnectionResetError as e:
             if logger:
                 logger.debug(f"({ip_address}) Socket stream has been terminated")
                 return None
             else:
-                raise utilities.exceptions.StreamTerminated(f"({ip_address}) Stream has been terminated")
+                raise utilities.exceptions.StreamTerminated("Stream has been terminated")
