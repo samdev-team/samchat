@@ -22,8 +22,7 @@ To do this type this command.
 ```shell
 $ python3 -m venv venv
 ```
-this command creates a virtual environment called venv. \
-you can activate the virtual environment by typing 
+this command creates a virtual environment called venv. you can activate the virtual environment by typing 
 
 | Platform |      Shell      | Command to Activate virtual environment | 
 |:--------:|:---------------:|:----------------------------------------|
