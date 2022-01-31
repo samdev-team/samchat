@@ -26,12 +26,12 @@ this command creates a virtual environment called venv. you can activate the vir
 
 | Platform |      Shell      | Command to Activate virtual environment | 
 |:--------:|:---------------:|:----------------------------------------|
-|  POSIX   |    BASH/ZSH     | $ source <venv>/bin/activate            |
-|          |      FISH       | $ source <venv>/bin/activate.fish       |
-|          |    CSH/TCSH     | $ source <venv>/bin/activate.csh        |
-|          | Powershell Core | $ <venv>/bin/Activate.ps1               |
-| Windows  |     cmd.exe     | C:\> <venv>\Scripts\activate.bat        |
-|          |   PowerShell    | PS C:\> <venv>\Scripts\Activate.ps1     |
+|  POSIX   |    BASH/ZSH     | $ source venv/bin/activate            |
+|          |      FISH       | $ source venv/bin/activate.fish       |
+|          |    CSH/TCSH     | $ source venv/bin/activate.csh        |
+|          | Powershell Core | $ venv/bin/Activate.ps1               |
+| Windows  |     cmd.exe     | C:\> venv\Scripts\activate.bat        |
+|          |   PowerShell    | PS C:\> venv\Scripts\Activate.ps1     |
 
 [Source - python.org](https://docs.python.org/3/library/venv.html)
 
