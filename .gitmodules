@@ -1,3 +1,6 @@
 [submodule "pyaudio"]
 	path = pyaudio
 	url = https://git.skeh.site/skeh/pyaudio.git
+[submodule "portaudio"]
+	path = portaudio
+	url = https://github.com/PortAudio/portaudio.git

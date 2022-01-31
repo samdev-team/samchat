@@ -1,3 +1,16 @@
+# SAM-Chat is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# SAM-Chat is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with this
+# program. If not, see <https://www.gnu.org/licenses/>.
+
+
 import pyaudio
 import time
 
@@ -43,7 +56,6 @@ def mix_audio_frames(frames_list: list):
     return final_frames
 
 
-
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -74,15 +86,26 @@ for i in range(int(RATE / CHUNK * 3)):
 print("finished")
 print("recording second time")
 frames2 = []
-for i in range(int(RATE / CHUNK * 3)):
+for i in range(int(RATE / CHUNK * 1)):
     data = stream1.read(CHUNK)
     # if you want to hear your voice while recording
     # stream.write(data)
+    print(i)
     frames2.append(data)
 
 print("finished")
 
-for frame in mix_audio_frames([frames1, frames2]):
+print("recording third time")
+frames3 = []
+for i in range(int(RATE / CHUNK * 3)):
+    data = stream1.read(CHUNK)
+    # if you want to hear your voice while recording
+    # stream.write(data)
+    frames3.append(data)
+
+print("finished")
+
+for frame in mix_audio_frames([frames1, frames2, frames3]):
     stream2.write(frame)
 
 while True:

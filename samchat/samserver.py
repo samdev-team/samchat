@@ -19,7 +19,6 @@ import time
 import os
 
 from utilities.samsocket import samsocket, message, Encryption
-import utilities.exceptions
 
 # logging setup
 root = logging.getLogger("SAM-Server")
@@ -93,9 +92,6 @@ class User(Client):
         send_to_all(message.create_formatted_message(
             '0', self.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8",
                                                                                        errors="ignore"), msg, self)
-
-
-
 
 
 port = 25469

@@ -53,9 +53,6 @@ if "dev" in sys.argv:
     ip = "127.0.0.1"
 
 
-def VoiceChat
-
-
 class StartMenu(ttk.Frame):
     def __init__(self, parent):
         ttk.Frame.__init__(self, parent)
@@ -338,7 +335,7 @@ class Application(Tk):
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
         threading.Thread(target=receive_messages, daemon=True).start()
-        threading.Thread(target=send_audio_data, daemon=True).start()
+        # threading.Thread(target=send_audio_data, daemon=True).start()
 
 
 def send_audio_data():
@@ -360,6 +357,7 @@ def receive_messages():
                     app._chat_room.add_message(f"{message}")
                 else:
                     if formatted_msg[0]["type"] == "2":
+                        print("s")
                         stream1.write(formatted_msg[1])
                     else:
                         app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
