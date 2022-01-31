@@ -1,3 +1,5 @@
+# This file is part of SAM-Chat
+#
 # SAM-Chat is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later version.
@@ -256,7 +258,7 @@ class ChatRoom(ttk.Frame):
             samsocket.send_message(self.parent.sock, self.parent.encryption,
                                    message.create_formatted_message('0', self.username, self.current_samroom,
                                                                     msg.encode()).decode("utf-8", errors="ignore"))
-            # self.add_message(f"{self.username}: {msg}")
+            self.add_message(f"{self.username}: {msg}")
 
     def on_resize(self, event):
         # determine the ratio of old width/height to new width/height
@@ -335,7 +337,7 @@ class Application(Tk):
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
         threading.Thread(target=receive_messages, daemon=True).start()
-        # threading.Thread(target=send_audio_data, daemon=True).start()
+        threading.Thread(target=send_audio_data, daemon=True).start()
 
 
 def send_audio_data():
@@ -345,7 +347,12 @@ def send_audio_data():
             samsocket.send_data(app.sock, app.encryption,
                                 message.create_formatted_message('2', app._start_menu.username, 'server', data))
         except utilities.exceptions.StreamTerminated:
-            pass
+            stream.stop_stream()
+            stream.close()
+            stream1.stop_stream()
+            stream1.close()
+            p.terminate()
+            break
 
 
 def receive_messages():
@@ -367,11 +374,6 @@ def receive_messages():
             break
         except utilities.exceptions.EncryptionFailed:
             print("You must have the wrong key dude or thewre is a new bug :DEATH:")
-    stream.stop_stream()
-    stream.close()
-    stream1.stop_stream()
-    stream1.close()
-    p.terminate()
     app.clear_window()
     ttk.Label(app, text="Lost connection with the server\nServer is probably down by "
                         "accident", justify=CENTER, style="three.TLabel").grid(column=1, row=1)

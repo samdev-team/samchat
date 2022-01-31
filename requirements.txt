@@ -1,2 +1,3 @@
 cryptography
 PyQt5
+pyaudio

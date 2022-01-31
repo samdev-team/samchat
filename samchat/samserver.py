@@ -1,3 +1,5 @@
+# This file is part of SAM-Chat
+#
 # SAM-Chat is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later version.
@@ -9,6 +11,7 @@
 #
 # You should have received a copy of the GNU General Public License along with this
 # program. If not, see <https://www.gnu.org/licenses/>.
+
 
 import socket
 import threading
@@ -91,7 +94,8 @@ class User(Client):
         messages.insert(0, [self.username, msg])
         send_to_all(message.create_formatted_message(
             '0', self.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8",
-                                                                                       errors="ignore"), msg, self)
+                                                                                       errors="ignore"), msg, self,
+                    False)
 
 
 port = 25469
@@ -131,7 +135,7 @@ def process_message(formatted_msg, room_user):
                 send_to_all(message.create_formatted_message(
                     '0', user.username, "server", msg.encode("utf-8", errors="ignore")).decode("utf-8",
                                                                                                errors="ignore"), msg,
-                            user)
+                            user, False)
     #         else:
     #             if message_headers["message_recipient"] in rooms.keys():
     #                 room = rooms[message_headers["message_recipient"]]
@@ -187,10 +191,13 @@ def generate_room_code():
         return str(potential_roomcode)
 
 
-def send_to_all(formatted_message: str, msg: str, user: User):
+def send_to_all(formatted_message: str, msg: str, user: User, send_author: bool):
     root.info(f"({user.ip_address}) {msg}")
-    for user in users.values():
-        samsocket.send_message(user.client, encryption, formatted_message)
+    for _user in users.values():
+        if _user.username == user.username and send_author:
+            samsocket.send_message(_user.client, encryption, formatted_message)
+        elif not _user.username == user.username:
+            samsocket.send_message(_user.client, encryption, formatted_message)
 
 
 def send_voice_to_all(formatted_message: bytes):
@@ -261,7 +268,7 @@ def add_client(client: socket.socket, address):
         send_to_all(
             message.create_formatted_message(
                 '0', user.username, "server",
-                msg.encode("utf-8", errors="ignore")).decode("utf-8", errors="ignore"), msg, user)
+                msg.encode("utf-8", errors="ignore")).decode("utf-8", errors="ignore"), msg, user, True)
         user.receive_messages()
     else:
         return

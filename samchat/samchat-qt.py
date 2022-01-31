@@ -1,3 +1,5 @@
+# This file is part of SAM-Chat
+#
 # SAM-Chat is free software: you can redistribute it and/or modify it under the
 # terms of the GNU General Public License as published by the Free Software
 # Foundation, either version 3 of the License, or (at your option) any later version.
@@ -16,7 +18,7 @@ from PyQt5.QtWidgets import (QWidget, QSlider, QLineEdit, QLabel, QPushButton, Q
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap
 import sys
-from samsocket import samsocket, encryption, message
+from samsocket import samsocket, Encryption, message
 
 class MainWindow(QMainWindow):
     def __init__(self):
