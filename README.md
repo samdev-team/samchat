@@ -36,7 +36,7 @@ you can activate the virtual environment by typing
 
 [Source - python.org](https://docs.python.org/3/library/venv.html)
 
-## Installing PyAudio
+## Installing PortAudio
 **Installing PyAudio requires the portaudio-devel package to be installed for linux.** \
 **Check with your distro's package manager to see if it is available.** 
 **If portaudio is not available then you have to build it manually.**
@@ -63,7 +63,7 @@ after you have done this you have successfully installed portaudio
 ### Building in windows:
 idk yet
 
-
+## Installing PyAudio
 Now that you have Installed portaudio you have to add the module to the virtual environment.
 To add it in linux do this:
 ```shell
