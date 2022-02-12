@@ -44,7 +44,7 @@ class Client:
 
 
 class Room(Client):
-    def __init__(self, client):
+    def __init__(self, client=None):
         Client.__init__(self, client)
         self.roomname = None
         self.roomcode = None
@@ -69,7 +69,7 @@ class Room(Client):
 
 
 class User(Client):
-    def __init__(self, client):
+    def __init__(self, client=None):
         Client.__init__(self, client)
         self.username = None
 
@@ -179,8 +179,6 @@ def process_message(formatted_msg, room_user):
     #             send_message(create_formatted_message(message_type="0", message_author="server",
     #                                                   message_recipient=user.username,
     #                                                   message="You cant join the server room"), user.client)
-    elif formatted_msg[0]["type"] == '2':
-        pass
 
 
 def generate_room_code():
@@ -329,7 +327,7 @@ try:
     sock.bind(("", port))
     root.debug(f"Binded socket to every network interface on port {port}")
     root.debug("Creating server root user")
-    server_root = User(None)
+    server_root = User()
     server_root.username = "server"
     server_root.userid = 0
     server_root.ip_address = "sus.sus.sus.sus"

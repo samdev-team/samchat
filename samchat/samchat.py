@@ -26,29 +26,29 @@ import pyaudio
 
 import time
 
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-RECORD_TIME = 1
-
-p = pyaudio.PyAudio()
-
-stream = p.open(format=FORMAT,
-                channels=CHANNELS,
-                rate=RATE,
-                input=True,
-                frames_per_buffer=CHUNK)
-
-stream1 = p.open(format=FORMAT,
-                 channels=CHANNELS,
-                 rate=RATE,
-                 output=True,
-                 frames_per_buffer=CHUNK)
+# CHUNK = 1024
+# FORMAT = pyaudio.paInt16
+# CHANNELS = 2
+# RATE = 44100
+# RECORD_TIME = 1
+#
+# p = pyaudio.PyAudio()
+#
+# stream = p.open(format=FORMAT,
+#                 channels=CHANNELS,
+#                 rate=RATE,
+#                 input=True,
+#                 frames_per_buffer=CHUNK)
+#
+# stream1 = p.open(format=FORMAT,
+#                  channels=CHANNELS,
+#                  rate=RATE,
+#                  output=True,
+#                  frames_per_buffer=CHUNK)
 
 ip = "rozzanet.ddns.net"
 port = 25469
-version = "6"
+version = "7"
 
 if "dev" in sys.argv:
     print("Starting in dev mode")
@@ -337,22 +337,22 @@ class Application(Tk):
         self._chat_room.grid(column=1, row=1, sticky="nsew")
         self._chat_room.create_chat_room()
         threading.Thread(target=receive_messages, daemon=True).start()
-        threading.Thread(target=send_audio_data, daemon=True).start()
+        # threading.Thread(target=send_audio_data, daemon=True).start()
 
 
-def send_audio_data():
-    while True:
-        data = stream.read(CHUNK)
-        try:
-            samsocket.send_data(app.sock, app.encryption,
-                                message.create_formatted_message('2', app._start_menu.username, 'server', data))
-        except utilities.exceptions.StreamTerminated:
-            stream.stop_stream()
-            stream.close()
-            stream1.stop_stream()
-            stream1.close()
-            p.terminate()
-            break
+# def send_audio_data():
+#     while True:
+#         data = stream.read(CHUNK)
+#         try:
+#             samsocket.send_data(app.sock, app.encryption,
+#                                 message.create_formatted_message('2', app._start_menu.username, 'server', data))
+#         except utilities.exceptions.StreamTerminated:
+#             stream.stop_stream()
+#             stream.close()
+#             stream1.stop_stream()
+#             stream1.close()
+#             p.terminate()
+#             break
 
 
 def receive_messages():
@@ -363,11 +363,10 @@ def receive_messages():
                 if formatted_msg[0]["recipient"] == app._start_menu.username:
                     app._chat_room.add_message(f"{message}")
                 else:
-                    if formatted_msg[0]["type"] == "2":
-                        print("s")
-                        stream1.write(formatted_msg[1])
-                    else:
-                        app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
+                    # if formatted_msg[0]["type"] == "2":
+                    #     print("s")
+                    #     stream1.write(formatted_msg[1])
+                    app._chat_room.add_room_message(formatted_msg[0], formatted_msg[1])
             else:
                 break
         except utilities.exceptions.StreamTerminated:
