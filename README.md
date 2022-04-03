@@ -1,2 +1,2 @@
-# SAM-Chat
+# Sam Chat
 Epic chat app
